@@ -44,6 +44,8 @@ npm run dev
 
 Uygulama ilk acilista aile adi, ebeveyn adi ve PIN ile baslangic kurulumu ister. Isterseniz ornek cocuklar, gorevler ve oduller de otomatik olusturulur.
 
+Supabase baglantisi aktifse ve `families` tablosu bos ise, uygulama ilk `dashboard` yuklemesinde gercek Supabase tablolarina otomatik starter veri ekler. Varsayilan starter ebeveyn PIN'i `1234` olarak olusturulur.
+
 ## Kiosk modu
 
 - Android tabletlerde uygulamayi ana ekrana ekleyin.

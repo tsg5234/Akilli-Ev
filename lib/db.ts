@@ -24,6 +24,7 @@ import {
   getTurkishDateLabel,
   getWeekDays
 } from "@/lib/schedule";
+import { ensureStarterSeeded } from "@/lib/starter-seed";
 import { createAdminClient } from "@/lib/supabase";
 import type {
   DashboardPayload,
@@ -52,10 +53,37 @@ async function getFamilyInternal() {
     .maybeSingle();
 
   if (error) {
-    fail("Aile bilgisi alınamadı", error);
+    fail("Aile bilgisi alinamadi", error);
   }
 
   return data as FamilyRecord | null;
+}
+
+function getEmptyDashboardSnapshot(): DashboardPayload {
+  return {
+    setupRequired: true,
+    family: null,
+    session: {
+      authenticated: false,
+      role: null
+    },
+    users: [],
+    tasks: [],
+    completions: [],
+    rewards: [],
+    redemptions: [],
+    pointEvents: [],
+    today: {
+      dateKey: getDateKey(),
+      label: getTurkishDateLabel(),
+      weekday: new Intl.DateTimeFormat("tr-TR", {
+        timeZone: "Europe/Istanbul",
+        weekday: "long"
+      }).format(new Date()),
+      activeTimeBlock: getActiveTimeBlock()
+    },
+    week: getWeekDays()
+  };
 }
 
 export async function bootstrapApp({
@@ -68,124 +96,122 @@ export async function bootstrapApp({
     return bootstrapLocalApp({ familyName, parentName, pin, includeSampleData });
   }
 
-  try {
-    const currentFamily = await getFamilyInternal();
+  const currentFamily = await getFamilyInternal();
 
-    if (currentFamily) {
-      throw new Error("Kurulum zaten tamamlanmış.");
+  if (currentFamily) {
+    throw new Error("Kurulum zaten tamamlandi.");
+  }
+
+  const supabase = createAdminClient();
+  const parentPinHash = await bcrypt.hash(pin, 10);
+
+  const { data: family, error: familyError } = await supabase
+    .from("families")
+    .insert({
+      name: familyName,
+      parent_pin_hash: parentPinHash,
+      child_sleep_time: "22:00",
+      parent_sleep_time: "00:00",
+      day_reset_time: "00:00"
+    })
+    .select("*")
+    .single();
+
+  if (familyError) {
+    fail("Aile olusturulamadi", familyError);
+  }
+
+  const usersSeed: Array<Record<string, unknown>> = [
+    {
+      family_id: family.id,
+      name: parentName,
+      role: "ebeveyn",
+      avatar: "\u{1F468}",
+      color: "#2DD4BF"
     }
+  ];
 
-    const supabase = createAdminClient();
-    const parentPinHash = await bcrypt.hash(pin, 10);
-
-    const { data: family, error: familyError } = await supabase
-      .from("families")
-      .insert({
-        name: familyName,
-        parent_pin_hash: parentPinHash,
-        child_sleep_time: "22:00",
-        parent_sleep_time: "00:00",
-        day_reset_time: "00:00"
-      })
-      .select("*")
-      .single();
-
-    if (familyError) {
-      fail("Aile oluşturulamadı", familyError);
-    }
-
-    const usersSeed: Array<Record<string, unknown>> = [
+  if (includeSampleData) {
+    usersSeed.push(
       {
         family_id: family.id,
-        name: parentName,
+        name: "Esra",
         role: "ebeveyn",
-        avatar: "👨",
-        color: "#2DD4BF"
+        avatar: "\u{1F469}",
+        color: "#FB7185"
+      },
+      {
+        family_id: family.id,
+        name: "Poyraz",
+        role: "\u00e7ocuk",
+        avatar: "\u{1F981}",
+        color: "#60A5FA",
+        birthdate: "2016-05-14"
+      },
+      {
+        family_id: family.id,
+        name: "Aden",
+        role: "\u00e7ocuk",
+        avatar: "\u{1F984}",
+        color: "#22C55E",
+        birthdate: "2019-09-02"
       }
-    ];
-
-    if (includeSampleData) {
-      usersSeed.push(
-        {
-          family_id: family.id,
-          name: "Esra",
-          role: "ebeveyn",
-          avatar: "👩",
-          color: "#FB7185"
-        },
-        {
-          family_id: family.id,
-          name: "Poyraz",
-          role: "çocuk",
-          avatar: "🦁",
-          color: "#60A5FA",
-          birthdate: "2016-05-14"
-        },
-        {
-          family_id: family.id,
-          name: "Aden",
-          role: "çocuk",
-          avatar: "🦄",
-          color: "#22C55E",
-          birthdate: "2019-09-02"
-        }
-      );
-    }
-
-    const { data: insertedUsers, error: usersError } = await supabase
-      .from("users")
-      .insert(usersSeed)
-      .select("*");
-
-    if (usersError) {
-      fail("Kullanıcılar oluşturulamadı", usersError);
-    }
-
-    if (includeSampleData) {
-      const users = insertedUsers as UserRecord[];
-
-      const { error: tasksError } = await supabase.from("tasks").insert(
-        SAMPLE_TASK_TEMPLATES.map((task) => ({
-          family_id: family.id,
-          title: task.title,
-          icon: task.icon,
-          points: task.points,
-          assigned_to: users.map((user) => user.id),
-          schedule_type: "gunluk",
-          days: [],
-          special_dates: [],
-          time_block: task.timeBlock
-        }))
-      );
-
-      if (tasksError) {
-        fail("Örnek görevler eklenemedi", tasksError);
-      }
-
-      const { error: rewardsError } = await supabase.from("rewards").insert([
-        {
-          family_id: family.id,
-          title: "Film gecesi seçimi",
-          points_required: 120,
-          approval_required: false
-        },
-        {
-          family_id: family.id,
-          title: "Hafta sonu dondurma",
-          points_required: 180,
-          approval_required: true
-        }
-      ]);
-
-      if (rewardsError) {
-        fail("Örnek ödüller eklenemedi", rewardsError);
-      }
-    }
-
-    return getDashboardSnapshot();
-  } catch {
-    return bootstrapLocalApp({ familyName, parentName, pin, includeSampleData });
+    );
   }
+
+  const { data: insertedUsers, error: usersError } = await supabase
+    .from("users")
+    .insert(usersSeed)
+    .select("*");
+
+  if (usersError) {
+    fail("Kullanicilar olusturulamadi", usersError);
+  }
+
+  if (includeSampleData) {
+    const users = (insertedUsers ?? []) as UserRecord[];
+    const childIds = users.filter((user) => user.role === "\u00e7ocuk").map((user) => user.id);
+    const assignedUserIds = childIds.length > 0 ? childIds : users.map((user) => user.id);
+
+    const { error: tasksError } = await supabase.from("tasks").insert(
+      SAMPLE_TASK_TEMPLATES.map((task) => ({
+        family_id: family.id,
+        title: task.title,
+        icon: task.icon,
+        points: task.points,
+        assigned_to: assignedUserIds,
+        schedule_type: "gunluk",
+        days: [],
+        special_dates: [],
+        time_block: task.timeBlock
+      }))
+    );
+
+    if (tasksError) {
+      fail("Ornek gorevler eklenemedi", tasksError);
+    }
+
+    const { error: rewardsError } = await supabase.from("rewards").insert([
+      {
+        family_id: family.id,
+        title: "Film gecesi secimi",
+        points_required: 120,
+        approval_required: false
+      },
+      {
+        family_id: family.id,
+        title: "Hafta sonu dondurma",
+        points_required: 180,
+        approval_required: true
+      }
+    ]);
+
+    if (rewardsError) {
+      fail("Ornek oduller eklenemedi", rewardsError);
+    }
+  }
+
+  return getDashboardSnapshot();
 }
 
 export async function getDashboardSnapshot(): Promise<DashboardPayload> {
@@ -193,109 +219,94 @@ export async function getDashboardSnapshot(): Promise<DashboardPayload> {
     return getLocalDashboardSnapshot();
   }
 
-  try {
-    const family = await getFamilyInternal();
-    const session = await getParentSession();
+  await ensureStarterSeeded();
 
-    if (!family) {
-      return {
-        setupRequired: true,
-        family: null,
-        session: {
-          authenticated: false,
-          role: null
-        },
-        users: [],
-        tasks: [],
-        completions: [],
-        rewards: [],
-        redemptions: [],
-        pointEvents: [],
-        today: {
-          dateKey: getDateKey(),
-          label: getTurkishDateLabel(),
-          weekday: new Intl.DateTimeFormat("tr-TR", {
-            timeZone: "Europe/Istanbul",
-            weekday: "long"
-          }).format(new Date()),
-          activeTimeBlock: getActiveTimeBlock()
-        },
-        week: getWeekDays()
-      };
-    }
+  const family = await getFamilyInternal();
+  const session = await getParentSession();
 
-    const supabase = createAdminClient();
-    const week = getWeekDays(new Date(), family);
-    const firstWeekDay = week[0]?.dateKey ?? getDateKey(new Date(), family);
+  if (!family) {
+    return getEmptyDashboardSnapshot();
+  }
 
-  const [usersResult, tasksResult, completionsResult, rewardsResult, redemptionsResult, eventsResult] =
-    await Promise.all([
-      supabase.from("users").select("*").eq("family_id", family.id).order("created_at"),
-      supabase.from("tasks").select("*").eq("family_id", family.id).order("created_at"),
-      supabase
-        .from("completions")
-        .select("*")
-        .eq("family_id", family.id)
-        .gte("completion_date", firstWeekDay)
-        .order("completion_date", { ascending: false }),
-      supabase.from("rewards").select("*").eq("family_id", family.id).order("points_required"),
-      supabase.from("redemptions").select("*").eq("family_id", family.id).order("requested_at", {
+  const supabase = createAdminClient();
+  const week = getWeekDays(new Date(), family);
+  const firstWeekDay = week[0]?.dateKey ?? getDateKey(new Date(), family);
+
+  const [
+    usersResult,
+    tasksResult,
+    completionsResult,
+    rewardsResult,
+    redemptionsResult,
+    eventsResult
+  ] = await Promise.all([
+    supabase.from("users").select("*").eq("family_id", family.id).order("created_at"),
+    supabase.from("tasks").select("*").eq("family_id", family.id).order("created_at"),
+    supabase
+      .from("completions")
+      .select("*")
+      .eq("family_id", family.id)
+      .gte("completion_date", firstWeekDay)
+      .order("completion_date", { ascending: false }),
+    supabase.from("rewards").select("*").eq("family_id", family.id).order("points_required"),
+    supabase
+      .from("redemptions")
+      .select("*")
+      .eq("family_id", family.id)
+      .order("requested_at", {
         ascending: false
       }),
-      supabase
-        .from("point_events")
-        .select("*")
-        .eq("family_id", family.id)
-        .order("created_at", { ascending: false })
-        .limit(60)
-    ]);
+    supabase
+      .from("point_events")
+      .select("*")
+      .eq("family_id", family.id)
+      .order("created_at", { ascending: false })
+      .limit(60)
+  ]);
 
-    if (usersResult.error) {
-      fail("Kullanıcılar alınamadı", usersResult.error);
-    }
-    if (tasksResult.error) {
-      fail("Görevler alınamadı", tasksResult.error);
-    }
-    if (completionsResult.error) {
-      fail("Tamamlanma kayıtları alınamadı", completionsResult.error);
-    }
-    if (rewardsResult.error) {
-      fail("Ödüller alınamadı", rewardsResult.error);
-    }
-    if (redemptionsResult.error) {
-      fail("Ödül talepleri alınamadı", redemptionsResult.error);
-    }
-    if (eventsResult.error) {
-      fail("Puan geçmişi alınamadı", eventsResult.error);
-    }
-
-    return {
-      setupRequired: false,
-      family,
-      session: {
-        authenticated: Boolean(session?.familyId === family.id),
-        role: session?.role ?? null
-      },
-      users: (usersResult.data ?? []) as UserRecord[],
-      tasks: (tasksResult.data ?? []) as TaskRecord[],
-      completions: completionsResult.data ?? [],
-      rewards: (rewardsResult.data ?? []) as RewardRecord[],
-      redemptions: redemptionsResult.data ?? [],
-      pointEvents: eventsResult.data ?? [],
-      today: {
-        dateKey: getDateKey(new Date(), family),
-        label: getTurkishDateLabel(new Date(), family),
-        weekday: new Intl.DateTimeFormat("tr-TR", {
-          timeZone: "Europe/Istanbul",
-          weekday: "long"
-        }).format(new Date()),
-        activeTimeBlock: getActiveTimeBlock(new Date(), family)
-      },
-      week
-    };
-  } catch {
-    return getLocalDashboardSnapshot();
+  if (usersResult.error) {
+    fail("Kullanicilar alinamadi", usersResult.error);
   }
+  if (tasksResult.error) {
+    fail("Gorevler alinamadi", tasksResult.error);
+  }
+  if (completionsResult.error) {
+    fail("Tamamlanma kayitlari alinamadi", completionsResult.error);
+  }
+  if (rewardsResult.error) {
+    fail("Oduller alinamadi", rewardsResult.error);
+  }
+  if (redemptionsResult.error) {
+    fail("Odul talepleri alinamadi", redemptionsResult.error);
+  }
+  if (eventsResult.error) {
+    fail("Puan gecmisi alinamadi", eventsResult.error);
+  }
+
+  return {
+    setupRequired: false,
+    family,
+    session: {
+      authenticated: Boolean(session?.familyId === family.id),
+      role: session?.role ?? null
+    },
+    users: (usersResult.data ?? []) as UserRecord[],
+    tasks: (tasksResult.data ?? []) as TaskRecord[],
+    completions: completionsResult.data ?? [],
+    rewards: (rewardsResult.data ?? []) as RewardRecord[],
+    redemptions: redemptionsResult.data ?? [],
+    pointEvents: eventsResult.data ?? [],
+    today: {
+      dateKey: getDateKey(new Date(), family),
+      label: getTurkishDateLabel(new Date(), family),
+      weekday: new Intl.DateTimeFormat("tr-TR", {
+        timeZone: "Europe/Istanbul",
+        weekday: "long"
+      }).format(new Date()),
+      activeTimeBlock: getActiveTimeBlock(new Date(), family)
+    },
+    week
+  };
 }
 
 export async function verifyParentPin(pin: string) {
@@ -303,34 +314,32 @@ export async function verifyParentPin(pin: string) {
     return verifyLocalParentPin(pin);
   }
 
-  try {
-    const family = await getFamilyInternal();
+  await ensureStarterSeeded();
 
-    if (!family) {
-      throw new Error("Önce kurulum yapılmalı.");
-    }
+  const family = await getFamilyInternal();
 
-    const supabase = createAdminClient();
-    const { data, error } = await supabase
-      .from("families")
-      .select("id, parent_pin_hash")
-      .eq("id", family.id)
-      .single();
-
-    if (error) {
-      fail("PIN doğrulanamadı", error);
-    }
-
-    const matched = await bcrypt.compare(pin, data.parent_pin_hash as string);
-
-    if (!matched) {
-      throw new Error("PIN hatalı.");
-    }
-
-    return family;
-  } catch {
-    return verifyLocalParentPin(pin);
+  if (!family) {
+    throw new Error("Once kurulum yapilmali.");
   }
+
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("families")
+    .select("id, parent_pin_hash")
+    .eq("id", family.id)
+    .single();
+
+  if (error) {
+    fail("PIN dogrulanamadi", error);
+  }
+
+  const matched = await bcrypt.compare(pin, data.parent_pin_hash as string);
+
+  if (!matched) {
+    throw new Error("PIN hatali.");
+  }
+
+  return family;
 }
 
 export async function saveUser(familyId: string, payload: UserFormPayload) {
@@ -338,31 +347,27 @@ export async function saveUser(familyId: string, payload: UserFormPayload) {
     return saveLocalUser(familyId, payload);
   }
 
-  try {
-    const supabase = createAdminClient();
-    const base = {
-      family_id: familyId,
-      name: payload.name,
-      role: payload.role,
-      avatar: payload.avatar,
-      color: payload.color,
-      birthdate: payload.birthdate || null
-    };
+  const supabase = createAdminClient();
+  const base = {
+    family_id: familyId,
+    name: payload.name,
+    role: payload.role,
+    avatar: payload.avatar,
+    color: payload.color,
+    birthdate: payload.birthdate || null
+  };
 
-    if (payload.id) {
-      const { error } = await supabase.from("users").update(base).eq("id", payload.id);
-      if (error) {
-        fail("Kullanıcı güncellenemedi", error);
-      }
-      return;
-    }
-
-    const { error } = await supabase.from("users").insert(base);
+  if (payload.id) {
+    const { error } = await supabase.from("users").update(base).eq("id", payload.id);
     if (error) {
-      fail("Kullanıcı oluşturulamadı", error);
+      fail("Kullanici guncellenemedi", error);
     }
-  } catch {
-    return saveLocalUser(familyId, payload);
+    return;
+  }
+
+  const { error } = await supabase.from("users").insert(base);
+  if (error) {
+    fail("Kullanici olusturulamadi", error);
   }
 }
 
@@ -371,34 +376,30 @@ export async function saveTask(familyId: string, payload: TaskFormPayload) {
     return saveLocalTask(familyId, payload);
   }
 
-  try {
-    const supabase = createAdminClient();
-    const base = {
-      family_id: familyId,
-      title: payload.title,
-      icon: payload.icon,
-      points: payload.points,
-      assigned_to: payload.assignedTo,
-      schedule_type: payload.scheduleType,
-      days: payload.days,
-      special_dates: payload.specialDates,
-      time_block: payload.timeBlock
-    };
+  const supabase = createAdminClient();
+  const base = {
+    family_id: familyId,
+    title: payload.title,
+    icon: payload.icon,
+    points: payload.points,
+    assigned_to: payload.assignedTo,
+    schedule_type: payload.scheduleType,
+    days: payload.days,
+    special_dates: payload.specialDates,
+    time_block: payload.timeBlock
+  };
 
-    if (payload.id) {
-      const { error } = await supabase.from("tasks").update(base).eq("id", payload.id);
-      if (error) {
-        fail("Görev güncellenemedi", error);
-      }
-      return;
-    }
-
-    const { error } = await supabase.from("tasks").insert(base);
+  if (payload.id) {
+    const { error } = await supabase.from("tasks").update(base).eq("id", payload.id);
     if (error) {
-      fail("Görev oluşturulamadı", error);
+      fail("Gorev guncellenemedi", error);
     }
-  } catch {
-    return saveLocalTask(familyId, payload);
+    return;
+  }
+
+  const { error } = await supabase.from("tasks").insert(base);
+  if (error) {
+    fail("Gorev olusturulamadi", error);
   }
 }
 
@@ -407,29 +408,25 @@ export async function saveReward(familyId: string, payload: RewardFormPayload) {
     return saveLocalReward(familyId, payload);
   }
 
-  try {
-    const supabase = createAdminClient();
-    const base = {
-      family_id: familyId,
-      title: payload.title,
-      points_required: payload.pointsRequired,
-      approval_required: payload.approvalRequired
-    };
+  const supabase = createAdminClient();
+  const base = {
+    family_id: familyId,
+    title: payload.title,
+    points_required: payload.pointsRequired,
+    approval_required: payload.approvalRequired
+  };
 
-    if (payload.id) {
-      const { error } = await supabase.from("rewards").update(base).eq("id", payload.id);
-      if (error) {
-        fail("Ödül güncellenemedi", error);
-      }
-      return;
-    }
-
-    const { error } = await supabase.from("rewards").insert(base);
+  if (payload.id) {
+    const { error } = await supabase.from("rewards").update(base).eq("id", payload.id);
     if (error) {
-      fail("Ödül oluşturulamadı", error);
+      fail("Odul guncellenemedi", error);
     }
-  } catch {
-    return saveLocalReward(familyId, payload);
+    return;
+  }
+
+  const { error } = await supabase.from("rewards").insert(base);
+  if (error) {
+    fail("Odul olusturulamadi", error);
   }
 }
 
@@ -438,22 +435,18 @@ export async function toggleTaskCompletion(taskId: string, userId: string, dateK
     return toggleLocalTaskCompletion(taskId, userId, dateKey);
   }
 
-  try {
-    const supabase = createAdminClient();
-    const { data, error } = await supabase.rpc("toggle_task_completion", {
-      p_user_id: userId,
-      p_task_id: taskId,
-      p_completion_date: dateKey
-    });
+  const supabase = createAdminClient();
+  const { data, error } = await supabase.rpc("toggle_task_completion", {
+    p_user_id: userId,
+    p_task_id: taskId,
+    p_completion_date: dateKey
+  });
 
-    if (error) {
-      fail("Görev işlenemedi", error);
-    }
-
-    return data?.[0] ?? null;
-  } catch {
-    return toggleLocalTaskCompletion(taskId, userId, dateKey);
+  if (error) {
+    fail("Gorev islenemedi", error);
   }
+
+  return data?.[0] ?? null;
 }
 
 export async function requestReward(userId: string, rewardId: string) {
@@ -461,21 +454,17 @@ export async function requestReward(userId: string, rewardId: string) {
     return requestLocalReward(userId, rewardId);
   }
 
-  try {
-    const supabase = createAdminClient();
-    const { data, error } = await supabase.rpc("request_reward_redemption", {
-      p_user_id: userId,
-      p_reward_id: rewardId
-    });
+  const supabase = createAdminClient();
+  const { data, error } = await supabase.rpc("request_reward_redemption", {
+    p_user_id: userId,
+    p_reward_id: rewardId
+  });
 
-    if (error) {
-      fail("Ödül talebi oluşturulamadı", error);
-    }
-
-    return data?.[0] ?? null;
-  } catch {
-    return requestLocalReward(userId, rewardId);
+  if (error) {
+    fail("Odul talebi olusturulamadi", error);
   }
+
+  return data?.[0] ?? null;
 }
 
 export async function resolveReward(redemptionId: string, status: "onaylandi" | "reddedildi") {
@@ -483,21 +472,17 @@ export async function resolveReward(redemptionId: string, status: "onaylandi" | 
     return resolveLocalReward(redemptionId, status);
   }
 
-  try {
-    const supabase = createAdminClient();
-    const { data, error } = await supabase.rpc("resolve_redemption", {
-      p_redemption_id: redemptionId,
-      p_status: status
-    });
+  const supabase = createAdminClient();
+  const { data, error } = await supabase.rpc("resolve_redemption", {
+    p_redemption_id: redemptionId,
+    p_status: status
+  });
 
-    if (error) {
-      fail("Ödül talebi güncellenemedi", error);
-    }
-
-    return data?.[0] ?? null;
-  } catch {
-    return resolveLocalReward(redemptionId, status);
+  if (error) {
+    fail("Odul talebi guncellenemedi", error);
   }
+
+  return data?.[0] ?? null;
 }
 
 export async function adjustPoints(userId: string, delta: number, note: string) {
@@ -505,22 +490,18 @@ export async function adjustPoints(userId: string, delta: number, note: string) 
     return adjustLocalPoints(userId, delta, note);
   }
 
-  try {
-    const supabase = createAdminClient();
-    const { data, error } = await supabase.rpc("adjust_user_points", {
-      p_user_id: userId,
-      p_delta: delta,
-      p_note: note
-    });
+  const supabase = createAdminClient();
+  const { data, error } = await supabase.rpc("adjust_user_points", {
+    p_user_id: userId,
+    p_delta: delta,
+    p_note: note
+  });
 
-    if (error) {
-      fail("Puan düzenlenemedi", error);
-    }
-
-    return data?.[0] ?? null;
-  } catch {
-    return adjustLocalPoints(userId, delta, note);
+  if (error) {
+    fail("Puan duzenlenemedi", error);
   }
+
+  return data?.[0] ?? null;
 }
 
 export async function resetFamilyProgress(familyId: string) {
@@ -528,46 +509,42 @@ export async function resetFamilyProgress(familyId: string) {
     return resetLocalProgress(familyId);
   }
 
-  try {
-    const supabase = createAdminClient();
+  const supabase = createAdminClient();
 
-    const { error: completionsError } = await supabase
-      .from("completions")
-      .delete()
-      .eq("family_id", familyId);
+  const { error: completionsError } = await supabase
+    .from("completions")
+    .delete()
+    .eq("family_id", familyId);
 
-    if (completionsError) {
-      fail("Tamamlanmalar sıfırlanamadı", completionsError);
-    }
+  if (completionsError) {
+    fail("Tamamlanmalar sifirlanamadi", completionsError);
+  }
 
-    const { error: redemptionsError } = await supabase
-      .from("redemptions")
-      .delete()
-      .eq("family_id", familyId);
+  const { error: redemptionsError } = await supabase
+    .from("redemptions")
+    .delete()
+    .eq("family_id", familyId);
 
-    if (redemptionsError) {
-      fail("Ödül talepleri sıfırlanamadı", redemptionsError);
-    }
+  if (redemptionsError) {
+    fail("Odul talepleri sifirlanamadi", redemptionsError);
+  }
 
-    const { error: pointEventsError } = await supabase
-      .from("point_events")
-      .delete()
-      .eq("family_id", familyId);
+  const { error: pointEventsError } = await supabase
+    .from("point_events")
+    .delete()
+    .eq("family_id", familyId);
 
-    if (pointEventsError) {
-      fail("Puan geçmişi sıfırlanamadı", pointEventsError);
-    }
+  if (pointEventsError) {
+    fail("Puan gecmisi sifirlanamadi", pointEventsError);
+  }
 
-    const { error: usersError } = await supabase
-      .from("users")
-      .update({ points: 0 })
-      .eq("family_id", familyId);
+  const { error: usersError } = await supabase
+    .from("users")
+    .update({ points: 0 })
+    .eq("family_id", familyId);
 
-    if (usersError) {
-      fail("Kullanıcı puanları sıfırlanamadı", usersError);
-    }
-  } catch {
-    return resetLocalProgress(familyId);
+  if (usersError) {
+    fail("Kullanici puanlari sifirlanamadi", usersError);
   }
 }
 
@@ -586,14 +563,10 @@ export async function updateFamilySettings(
     return updateLocalFamilySettings(familyId, payload);
   }
 
-  try {
-    const supabase = createAdminClient();
-    const { error } = await supabase.from("families").update(payload).eq("id", familyId);
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("families").update(payload).eq("id", familyId);
 
-    if (error) {
-      fail("Aile ayarları güncellenemedi", error);
-    }
-  } catch {
-    return updateLocalFamilySettings(familyId, payload);
+  if (error) {
+    fail("Aile ayarlari guncellenemedi", error);
   }
 }
