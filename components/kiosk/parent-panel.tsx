@@ -151,7 +151,7 @@ export function ParentPanel(props: ParentPanelProps) {
   );
 
   const lockedView = (
-    <div className="flex h-full items-center justify-center p-8">
+    <div className="flex min-h-0 flex-1 items-center justify-center p-8">
       <div className="glass-panel-strong max-w-xl rounded-[2rem] p-8 text-center">
         <ShieldCheck className="mx-auto h-12 w-12 text-teal-600" />
         <h2 className="mt-4 text-3xl font-semibold">Ebeveyn girişi gerekli</h2>
@@ -219,6 +219,7 @@ export function ParentPanel(props: ParentPanelProps) {
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <AvatarPicker
+              compact
               role={userDraft.role}
               value={userDraft.avatar}
               onChange={(avatar) => setUserDraft((current) => ({ ...current, avatar }))}
@@ -873,22 +874,34 @@ export function ParentPanel(props: ParentPanelProps) {
     </div>
   );
 
+  const activeTabContent = tab === "kullanicilar"
+    ? usersTab
+    : tab === "gorevler"
+      ? tasksTab
+      : tab === "oduller"
+        ? rewardsTab
+        : tab === "puanlar"
+          ? pointsTab
+          : settingsTab;
+
   const body = !data?.session.parentAuthenticated
     ? lockedView
     : (
-      <div className="grid gap-5 xl:grid-cols-[210px_minmax(0,1fr)]">
-        <aside className="glass-panel rounded-[2rem] p-4">
+      <div className="flex min-h-0 flex-1 flex-col gap-4 xl:grid xl:grid-cols-[220px_minmax(0,1fr)]">
+        <aside className="glass-panel rounded-[2rem] p-3 lg:p-4 xl:min-h-0">
           <div className="mb-4 px-2">
             <div className="text-sm font-semibold uppercase tracking-[0.24em] text-teal-700">Ebeveyn paneli</div>
             <div className="mt-2 text-2xl font-semibold">{data.family?.name}</div>
           </div>
-          <div className="space-y-2">
+          <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 xl:mx-0 xl:block xl:space-y-2 xl:overflow-visible xl:px-0 xl:pb-0">
             {tabs.map((item) => (
               <button
                 key={item.id}
                 onClick={() => setTab(item.id)}
-                className={`flex w-full items-center gap-3 rounded-[1.3rem] px-4 py-4 text-left font-semibold ${
-                  tab === item.id ? "bg-slate-950 text-white" : "bg-white/70 text-slate-700"
+                className={`flex shrink-0 items-center gap-3 rounded-[1.3rem] px-4 py-3 text-left font-semibold xl:w-full ${
+                  tab === item.id
+                    ? "bg-slate-950 text-white"
+                    : "bg-white/70 text-slate-700"
                 }`}
               >
                 <item.icon className="h-5 w-5" />
@@ -898,18 +911,40 @@ export function ParentPanel(props: ParentPanelProps) {
           </div>
         </aside>
 
-        <div className="soft-scrollbar max-h-[calc(100vh-8rem)] overflow-y-auto pr-1">
-          {tab === "kullanicilar" ? usersTab : null}
-          {tab === "gorevler" ? tasksTab : null}
-          {tab === "oduller" ? rewardsTab : null}
-          {tab === "puanlar" ? pointsTab : null}
-          {tab === "ayarlar" ? settingsTab : null}
+        <div className="soft-scrollbar min-h-0 flex-1 overflow-y-auto pr-1 sm:pr-2">
+          {activeTabContent}
         </div>
       </div>
     );
 
+  const panelShell = (
+    <div className="glass-panel-strong flex h-full min-h-0 flex-col rounded-none p-3 sm:rounded-[2.4rem] sm:p-4 lg:p-5">
+      <div className="mb-3 flex items-center justify-between gap-4 border-b border-white/60 px-1 pb-3 sm:mb-4 sm:pb-4">
+        <div className="min-w-0">
+          <div className="text-sm font-semibold uppercase tracking-[0.24em] text-teal-700">Yonetim paneli</div>
+          <div className="text-xl font-semibold sm:text-2xl">Aile kontrol merkezi</div>
+        </div>
+        {!standalone ? (
+          <button
+            onClick={onClose}
+            className="rounded-full bg-slate-200 px-4 py-2 font-semibold text-slate-800"
+          >
+            Kapat
+          </button>
+        ) : null}
+      </div>
+      <div className="min-h-0 flex-1">{body}</div>
+    </div>
+  );
+
   if (standalone) {
-    return <div className="app-surface px-4 py-6 lg:px-6">{body}</div>;
+    return (
+      <div className="app-surface min-h-screen p-0 sm:p-3 lg:p-4">
+        <div className="mx-auto h-[100dvh] w-full max-w-[1600px] sm:h-[calc(100dvh-1.5rem)] lg:h-[calc(100dvh-2rem)]">
+          {panelShell}
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -928,20 +963,9 @@ export function ParentPanel(props: ParentPanelProps) {
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", stiffness: 260, damping: 28 }}
-            className="fixed right-0 top-0 z-50 h-screen w-full max-w-[1080px] bg-transparent p-3 lg:p-5"
+            className="fixed inset-0 z-50 bg-transparent p-0 sm:p-3 lg:p-4"
           >
-            <div className="glass-panel-strong h-full rounded-[2.4rem] p-4 lg:p-5">
-              <div className="mb-4 flex items-center justify-between gap-4 px-2">
-                <div>
-                  <div className="text-sm font-semibold uppercase tracking-[0.24em] text-teal-700">Yönetim paneli</div>
-                  <div className="text-2xl font-semibold">Aile kontrol merkezi</div>
-                </div>
-                <button onClick={onClose} className="rounded-full bg-slate-200 px-4 py-2 font-semibold text-slate-800">
-                  Kapat
-                </button>
-              </div>
-              {body}
-            </div>
+            <div className="mx-auto h-full w-full max-w-[1600px]">{panelShell}</div>
           </motion.aside>
         </>
       ) : null}
