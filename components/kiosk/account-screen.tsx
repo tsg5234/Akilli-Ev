@@ -100,17 +100,6 @@ export function AccountScreen({
         </section>
 
         <section className="order-1 rounded-[2.1rem] bg-white/92 p-5 shadow-panel sm:p-6 xl:order-2 xl:p-8">
-          <div className="mb-5 flex flex-wrap gap-2">
-            {["Hesap", "Profil", "PIN"].map((item) => (
-              <span
-                key={item}
-                className="rounded-full bg-slate-100 px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-slate-500"
-              >
-                {item}
-              </span>
-            ))}
-          </div>
-
           <div className="flex items-center gap-3 rounded-full bg-slate-100 p-1">
             {[
               { id: "login" as const, label: "Giris yap" },
@@ -218,11 +207,6 @@ export function AccountScreen({
               {submitLabel}
             </button>
 
-            <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 px-4 py-4 text-sm leading-6 text-slate-600">
-              {mode === "login"
-                ? "Giris yapinca sadece bu hesaba ait aile acilir."
-                : "Hesap acinca seni profil kurulumuna gotururuz."}
-            </div>
           </form>
         </section>
       </motion.main>
