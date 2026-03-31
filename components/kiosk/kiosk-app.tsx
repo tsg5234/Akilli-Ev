@@ -334,6 +334,19 @@ function getDayPartMeta(timeBlock: TaskRecord["time_block"]) {
   }
 }
 
+function getCompactDayPartChipClasses(timeBlock: TimeBlock) {
+  switch (timeBlock) {
+    case "sabah":
+      return "bg-sky-100/88 text-sky-900 ring-1 ring-white/75";
+    case "ogleden_sonra":
+      return "bg-amber-100/88 text-amber-950 ring-1 ring-white/75";
+    case "aksam":
+      return "bg-indigo-100/88 text-indigo-900 ring-1 ring-white/75";
+    default:
+      return "bg-emerald-100/88 text-emerald-900 ring-1 ring-white/75";
+  }
+}
+
 function getActiveDayPartMeta(timeBlock: ActiveTimeBlock) {
   if (timeBlock === "gece") {
     return {
@@ -1008,22 +1021,24 @@ export function KioskApp({ mode }: KioskAppProps) {
                         onClick={() =>
                           setExpandedTaskGroup((current) => (current === group.block ? null : group.block))
                         }
-                        className="glass-panel-strong flex w-full flex-col gap-3 rounded-[2.1rem] border border-white/12 px-4 py-4 text-left sm:flex-row sm:items-center sm:justify-between sm:px-5"
+                        className="glass-panel-strong flex w-full flex-col gap-2 rounded-[1.8rem] border border-white/12 px-4 py-3 text-left sm:flex-row sm:items-center sm:justify-between"
                       >
                         <div className="flex min-w-0 items-center gap-3">
-                          <div className={`kid-daypart-pill ${dayPart.className}`}>
+                          <div
+                            className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-black tracking-[-0.02em] ${getCompactDayPartChipClasses(group.block)}`}
+                          >
                             <span aria-hidden="true">{dayPart.emoji}</span>
                             <span>{dayPart.label}</span>
                           </div>
                           {isCurrentGroup ? (
-                            <span className="rounded-full bg-white/14 px-3 py-1 text-[0.72rem] font-black uppercase tracking-[0.16em] text-white">
+                            <span className="rounded-full bg-white/14 px-2.5 py-1 text-[0.68rem] font-black uppercase tracking-[0.14em] text-white">
                               Simdi
                             </span>
                           ) : null}
                         </div>
 
                         <div className="flex items-center justify-between gap-3 sm:justify-end">
-                          <div className="text-right text-sm text-white/72">
+                          <div className="text-right text-[0.92rem] text-white/72">
                             <div className="font-semibold text-white">
                               {group.tasks.length > 0 ? `${group.tasks.length} acik gorev` : "Bu bolum tamam"}
                             </div>
