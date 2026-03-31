@@ -24,6 +24,7 @@ import {
   Star
 } from "lucide-react";
 import { AccountScreen } from "@/components/kiosk/account-screen";
+import { AvatarDisplay } from "@/components/kiosk/avatar-display";
 import { CelebrationLayer } from "@/components/kiosk/celebration-layer";
 import { DaySummaryPanel } from "@/components/kiosk/day-summary-panel";
 import { ParentPanel } from "@/components/kiosk/parent-panel";
@@ -794,8 +795,8 @@ export function KioskApp({ mode }: KioskAppProps) {
                       <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/85 to-transparent" />
                       <div className="relative">
                         <div className="flex items-start justify-between gap-3">
-                          <div className="kid-profile-avatar text-[3.8rem]">
-                            {user.avatar}
+                          <div className="kid-profile-avatar overflow-hidden text-[3.8rem]">
+                            <AvatarDisplay avatar={user.avatar} name={user.name} />
                           </div>
                           <div className="kid-profile-score">
                             <div className="flex items-center justify-center gap-2 text-amber-200">
@@ -845,8 +846,8 @@ export function KioskApp({ mode }: KioskAppProps) {
 
               <div className="kid-tasks-stage-header relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                 <div className="kid-tasks-stage-profile flex items-center gap-4">
-                  <div className="kid-profile-avatar text-[3.8rem] text-white">
-                    {selectedUser.avatar}
+                  <div className="kid-profile-avatar overflow-hidden text-[3.8rem] text-white">
+                    <AvatarDisplay avatar={selectedUser.avatar} name={selectedUser.name} />
                   </div>
                   <div className="text-white">
                     <h1 className="kid-tasks-stage-title text-4xl font-black tracking-[-0.07em] sm:text-[3.35rem]">

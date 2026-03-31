@@ -3,6 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { CheckCircle2, Gift, Settings2, ShieldCheck, Star, Users } from "lucide-react";
+import { AvatarDisplay } from "@/components/kiosk/avatar-display";
+import { AvatarPicker } from "@/components/kiosk/avatar-picker";
+import { getDefaultAvatar, normalizeAvatarForRole } from "@/lib/avatar";
 import { TIME_BLOCK_LABELS, WEEKDAY_LABELS } from "@/lib/schedule";
 import type { DashboardPayload, RewardFormPayload, TaskFormPayload, UserFormPayload } from "@/lib/types";
 
@@ -43,7 +46,7 @@ const tabs: Array<{ id: TabId; label: string; icon: React.ComponentType<{ classN
 const userDefaults: UserFormPayload = {
   name: "",
   role: "çocuk",
-  avatar: "🙂",
+  avatar: getDefaultAvatar("çocuk"),
   color: "#FB923C",
   birthdate: ""
 };
@@ -184,7 +187,13 @@ export function ParentPanel(props: ParentPanelProps) {
                 onChange={(event) =>
                   setUserDraft((current) => ({
                     ...current,
-                    role: event.target.value as UserFormPayload["role"]
+                    role: event.target.value as UserFormPayload["role"],
+                    avatar: normalizeAvatarForRole(
+                      event.target.value as UserFormPayload["role"],
+                      current.avatar
+                    ),
+                    birthdate:
+                      event.target.value === "ebeveyn" ? null : current.birthdate
                   }))
                 }
                 className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3"
@@ -204,14 +213,11 @@ export function ParentPanel(props: ParentPanelProps) {
             </label>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block space-y-2">
-              <Label>Avatar</Label>
-              <input
-                value={userDraft.avatar}
-                onChange={(event) => setUserDraft((current) => ({ ...current, avatar: event.target.value }))}
-                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-2xl"
-              />
-            </label>
+            <AvatarPicker
+              role={userDraft.role}
+              value={userDraft.avatar}
+              onChange={(avatar) => setUserDraft((current) => ({ ...current, avatar }))}
+            />
             <label className="block space-y-2">
               <Label>Renk</Label>
               <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-2">
@@ -262,10 +268,10 @@ export function ParentPanel(props: ParentPanelProps) {
             >
               <div className="flex items-center gap-4">
                 <div
-                  className="flex h-16 w-16 items-center justify-center rounded-[1.3rem] text-3xl"
+                  className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-[1.3rem] text-3xl"
                   style={{ backgroundColor: `${user.color}22`, color: user.color }}
                 >
-                  {user.avatar}
+                  <AvatarDisplay avatar={user.avatar} name={user.name} />
                 </div>
                 <div>
                   <div className="text-lg font-semibold">{user.name}</div>
@@ -335,7 +341,12 @@ export function ParentPanel(props: ParentPanelProps) {
                         active ? "bg-slate-950 text-white" : "bg-white ring-1 ring-slate-200"
                       }`}
                     >
-                      {user.avatar} {user.name}
+                      <span className="flex items-center gap-2">
+                        <span className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-base">
+                          <AvatarDisplay avatar={user.avatar} name={user.name} />
+                        </span>
+                        <span>{user.name}</span>
+                      </span>
                     </button>
                   );
                 })}

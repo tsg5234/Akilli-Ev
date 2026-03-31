@@ -3,6 +3,11 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Plus, Trash2, Users } from "lucide-react";
+import { AvatarPicker } from "@/components/kiosk/avatar-picker";
+import {
+  getDefaultAvatar,
+  normalizeAvatarForRole
+} from "@/lib/avatar";
 import type { SetupPayload, UserRole } from "@/lib/types";
 
 interface SetupScreenProps {
@@ -18,21 +23,6 @@ type SetupProfileDraft = SetupPayload["profiles"][number];
 const PROFILE_COLORS = ["#2DD4BF", "#FB7185", "#60A5FA", "#F59E0B", "#22C55E", "#A855F7"];
 const PARENT_ROLE: UserRole = "ebeveyn";
 const CHILD_ROLE: UserRole = "çocuk";
-const PARENT_AVATARS = ["👩", "👨", "🧑", "👵", "👴", "🙂", "😎", "🫶"];
-const CHILD_AVATARS = ["🦁", "🐼", "🐯", "🦊", "🐸", "🐻", "🦄", "🚀"];
-
-function getAvatarOptions(role: UserRole) {
-  return role === PARENT_ROLE ? PARENT_AVATARS : CHILD_AVATARS;
-}
-
-function getDefaultAvatar(role: UserRole) {
-  return getAvatarOptions(role)[0];
-}
-
-function normalizeAvatarForRole(role: UserRole, avatar: string) {
-  return getAvatarOptions(role).includes(avatar) ? avatar : getDefaultAvatar(role);
-}
-
 function createProfile(role: UserRole): SetupProfileDraft {
   return {
     name: "",
@@ -208,43 +198,16 @@ export function SetupScreen({
                       </label>
 
                       <div className="space-y-2">
-                        <span className="text-sm font-semibold text-slate-700">Avatar</span>
-                        <div className="rounded-[1.3rem] border border-slate-200 bg-slate-50 px-3 py-3">
-                          <div className="mb-3 flex flex-wrap gap-2">
-                            {getAvatarOptions(profile.role).map((avatar) => (
-                              <button
-                                key={`${index}-${avatar}`}
-                                type="button"
-                                onClick={() =>
-                                  updateProfile(index, (current) => ({
-                                    ...current,
-                                    avatar
-                                  }))
-                                }
-                                className={`flex h-12 w-12 items-center justify-center rounded-2xl border text-2xl transition ${
-                                  profile.avatar === avatar
-                                    ? "border-slate-950 bg-slate-950 text-white shadow-[0_10px_22px_rgba(15,23,42,0.18)]"
-                                    : "border-slate-200 bg-white hover:border-slate-300"
-                                }`}
-                                aria-label={`Avatar ${avatar}`}
-                              >
-                                {avatar}
-                              </button>
-                            ))}
-                          </div>
-
-                          <input
-                            value={profile.avatar}
-                            onChange={(event) =>
-                              updateProfile(index, (current) => ({
-                                ...current,
-                                avatar: event.target.value
-                              }))
-                            }
-                            className="w-full rounded-[1.1rem] border border-slate-200 bg-white px-3 py-3 text-lg outline-none transition focus:border-emerald-400 focus:shadow-[0_0_0_4px_rgba(16,185,129,0.12)]"
-                            placeholder="Istersen kendi emojini yaz"
-                          />
-                        </div>
+                        <AvatarPicker
+                          role={profile.role}
+                          value={profile.avatar}
+                          onChange={(avatar) =>
+                            updateProfile(index, (current) => ({
+                              ...current,
+                              avatar
+                            }))
+                          }
+                        />
                       </div>
 
                       {profile.role === CHILD_ROLE ? (
