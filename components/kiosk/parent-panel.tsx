@@ -48,8 +48,7 @@ const userDefaults: UserFormPayload = {
   role: "çocuk",
   avatar: getDefaultAvatar("çocuk"),
   color: "#FB923C",
-  birthdate: "",
-  visible_in_kiosk: true
+  birthdate: ""
 };
 
 const taskDefaults: TaskFormPayload = {
@@ -196,8 +195,7 @@ export function ParentPanel(props: ParentPanelProps) {
                       current.avatar
                     ),
                     birthdate:
-                      event.target.value === "ebeveyn" ? null : current.birthdate,
-                    visible_in_kiosk: current.visible_in_kiosk
+                      event.target.value === "ebeveyn" ? null : current.birthdate
                   }))
                 }
                 className="h-14 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3"
@@ -222,37 +220,18 @@ export function ParentPanel(props: ParentPanelProps) {
             value={userDraft.avatar}
             onChange={(avatar) => setUserDraft((current) => ({ ...current, avatar }))}
           />
-          <div className="grid gap-4 md:grid-cols-[220px_minmax(0,1fr)] md:items-start">
-            <label className="block space-y-2">
-              <Label>Renk</Label>
-              <div className="flex h-14 items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-2">
-                <input
-                  type="color"
-                  value={userDraft.color}
-                  onChange={(event) => setUserDraft((current) => ({ ...current, color: event.target.value }))}
-                  className="h-10 w-14 rounded-xl"
-                />
-                <span className="font-medium">{userDraft.color}</span>
-              </div>
-            </label>
-            <div className="space-y-2">
-              <Label>Kioskta goster</Label>
-              <label className="flex h-14 items-center justify-between rounded-[1.5rem] border border-slate-200 bg-white px-4 py-2">
-                <div className="font-medium text-slate-700">Profil ana ekranda gorunsun</div>
-                <input
-                  type="checkbox"
-                  checked={userDraft.visible_in_kiosk !== false}
-                  onChange={(event) =>
-                    setUserDraft((current) => ({
-                      ...current,
-                      visible_in_kiosk: event.target.checked
-                    }))
-                  }
-                  className="h-5 w-5"
-                />
-              </label>
+          <label className="block space-y-2">
+            <Label>Renk</Label>
+            <div className="flex h-14 items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-2">
+              <input
+                type="color"
+                value={userDraft.color}
+                onChange={(event) => setUserDraft((current) => ({ ...current, color: event.target.value }))}
+                className="h-10 w-14 rounded-xl"
+              />
+              <span className="font-medium">{userDraft.color}</span>
             </div>
-          </div>
+          </label>
           <div className="flex gap-3">
             <button
               onClick={() => onSaveUser(userDraft)}
@@ -287,8 +266,7 @@ export function ParentPanel(props: ParentPanelProps) {
                   role: user.role,
                   avatar: user.avatar,
                   color: user.color,
-                  birthdate: user.birthdate ?? "",
-                  visible_in_kiosk: user.visible_in_kiosk
+                  birthdate: user.birthdate ?? ""
                 })
               }
               className="rounded-[1.6rem] border border-slate-200 bg-white/80 p-4 text-left"
@@ -304,7 +282,6 @@ export function ParentPanel(props: ParentPanelProps) {
                   <div className="text-lg font-semibold">{user.name}</div>
                   <div className="text-sm text-[color:var(--text-muted)]">
                     {user.role === "ebeveyn" ? "Ebeveyn" : "Cocuk"} • {user.points} puan
-                    {user.visible_in_kiosk ? " • kioskta gorunur" : " • kioskta gizli"}
                   </div>
                 </div>
               </div>

@@ -15,7 +15,7 @@ export async function POST(request: Request) {
             avatar: profile.avatar?.trim() ?? "",
             color: profile.color?.trim() ?? "",
             birthdate: profile.birthdate?.trim() || null,
-            visible_in_kiosk: profile.visible_in_kiosk !== false
+            visible_in_kiosk: true
           }))
           .filter((profile) => profile.name && profile.avatar && profile.color)
       : [];

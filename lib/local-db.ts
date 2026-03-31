@@ -123,7 +123,7 @@ function getPublicFamilyRecord(family: LocalFamilyRecord): FamilyRecord {
 function normalizeLocalUserRecord(user: UserRecord): UserRecord {
   return {
     ...user,
-    visible_in_kiosk: user.visible_in_kiosk !== false
+    visible_in_kiosk: true
   };
 }
 
@@ -248,7 +248,7 @@ export async function bootstrapLocalApp(accountId: string, payload: SetupPayload
     avatar: profile.avatar.trim(),
     color: profile.color.trim(),
     birthdate: profile.birthdate || null,
-    visible_in_kiosk: profile.visible_in_kiosk !== false,
+    visible_in_kiosk: true,
     points: 0,
     created_at: createdAt
   }));
@@ -326,7 +326,7 @@ export async function saveLocalUser(familyId: string, payload: UserFormPayload) 
     target.avatar = payload.avatar;
     target.color = payload.color;
     target.birthdate = payload.birthdate || null;
-    target.visible_in_kiosk = payload.visible_in_kiosk !== false;
+    target.visible_in_kiosk = true;
     return;
   }
 
@@ -338,7 +338,7 @@ export async function saveLocalUser(familyId: string, payload: UserFormPayload) 
     avatar: payload.avatar,
     color: payload.color,
     birthdate: payload.birthdate || null,
-    visible_in_kiosk: payload.visible_in_kiosk !== false,
+    visible_in_kiosk: true,
     points: 0,
     created_at: nowIso()
   });

@@ -147,14 +147,10 @@ function normalizeUserRole(role: string): UserRecord["role"] {
   return role === "ebeveyn" ? "ebeveyn" : CHILD_ROLE;
 }
 
-function getStoredProfileName(
-  name: string,
-  role: UserRecord["role"],
-  visibleInKiosk = true
-) {
+function getStoredProfileName(name: string, role: UserRecord["role"]) {
   const baseName = role === CHILD_ROLE ? `${CHILD_USER_PREFIX}${name}` : name;
 
-  return visibleInKiosk ? baseName : `${HIDDEN_USER_PREFIX}${baseName}`;
+  return baseName;
 }
 
 function normalizeUserRecord(user: UserRecord): UserRecord {
@@ -164,7 +160,7 @@ function normalizeUserRecord(user: UserRecord): UserRecord {
     ...user,
     name: stripStoredProfileName(user.name),
     role: storedName.startsWith(CHILD_USER_PREFIX) ? CHILD_ROLE : normalizeUserRole(user.role),
-    visible_in_kiosk: !isStoredHiddenName(user.name)
+    visible_in_kiosk: true
   };
 }
 
@@ -321,7 +317,7 @@ async function insertProfileUser(
   const supabase = createAdminClient();
   const base = {
     family_id: familyId,
-    name: getStoredProfileName(profile.name, profile.role, profile.visibleInKiosk),
+    name: getStoredProfileName(profile.name, profile.role),
     avatar: profile.avatar,
     color: profile.color,
     birthdate: profile.birthdate
@@ -354,7 +350,7 @@ async function updateProfileUser(
   const supabase = createAdminClient();
   const base = {
     family_id: familyId,
-    name: getStoredProfileName(profile.name, profile.role, profile.visibleInKiosk),
+    name: getStoredProfileName(profile.name, profile.role),
     avatar: profile.avatar,
     color: profile.color,
     birthdate: profile.birthdate
@@ -501,7 +497,7 @@ export async function bootstrapApp(account: AuthAccount, payload: SetupPayload) 
     avatar: profile.avatar.trim(),
     color: profile.color.trim(),
     birthdate: profile.birthdate || null,
-    visible_in_kiosk: profile.visible_in_kiosk !== false
+    visible_in_kiosk: true
   }));
 
   if (sanitizedProfiles.length === 0) {
@@ -550,7 +546,7 @@ export async function bootstrapApp(account: AuthAccount, payload: SetupPayload) 
         avatar: profile.avatar,
         color: profile.color,
         birthdate: profile.birthdate,
-        visibleInKiosk: profile.visible_in_kiosk
+        visibleInKiosk: true
       })
     )
   );
@@ -802,7 +798,7 @@ export async function saveUser(familyId: string, payload: UserFormPayload) {
       avatar: payload.avatar,
       color: payload.color,
       birthdate: payload.birthdate || null,
-      visibleInKiosk: payload.visible_in_kiosk !== false
+      visibleInKiosk: true
     });
 
     return;
@@ -814,7 +810,7 @@ export async function saveUser(familyId: string, payload: UserFormPayload) {
     avatar: payload.avatar,
     color: payload.color,
     birthdate: payload.birthdate || null,
-    visibleInKiosk: payload.visible_in_kiosk !== false
+    visibleInKiosk: true
   });
 }
 

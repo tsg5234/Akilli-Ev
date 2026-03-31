@@ -45,8 +45,6 @@ export function SetupScreen({
   const [pin, setPin] = useState("");
   const [includeSampleData, setIncludeSampleData] = useState(false);
   const [profiles, setProfiles] = useState<SetupProfileDraft[]>([]);
-  const visibleProfileCount = profiles.filter((profile) => profile.visible_in_kiosk !== false).length;
-
   const updateProfile = (
     index: number,
     updater: (profile: SetupProfileDraft) => SetupProfileDraft
@@ -248,8 +246,7 @@ export function SetupScreen({
                               ...current,
                               role,
                               avatar: normalizeAvatarForRole(role, current.avatar),
-                              birthdate: role === PARENT_ROLE ? null : current.birthdate,
-                              visible_in_kiosk: current.visible_in_kiosk
+                              birthdate: role === PARENT_ROLE ? null : current.birthdate
                             }));
                           }}
                           className="w-full rounded-[1.3rem] border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-emerald-400 focus:shadow-[0_0_0_4px_rgba(16,185,129,0.12)]"
@@ -257,28 +254,6 @@ export function SetupScreen({
                           <option value={PARENT_ROLE}>Ebeveyn</option>
                           <option value={CHILD_ROLE}>Cocuk</option>
                         </select>
-                      </label>
-
-                      <label className="flex items-center justify-between rounded-[1.3rem] border border-slate-200 bg-slate-50 px-4 py-3">
-                        <div className="pr-4">
-                          <div className="text-sm font-semibold text-slate-900">
-                            Kioskta goster
-                          </div>
-                          <div className="text-xs leading-5 text-slate-500">
-                            Bu profil kiosk ana ekraninda gorunsun.
-                          </div>
-                        </div>
-                        <input
-                          type="checkbox"
-                          checked={profile.visible_in_kiosk !== false}
-                          onChange={(event) =>
-                            updateProfile(index, (current) => ({
-                              ...current,
-                              visible_in_kiosk: event.target.checked
-                            }))
-                          }
-                          className="h-5 w-5 rounded border-slate-300 text-emerald-600"
-                        />
                       </label>
 
                       <label className="block space-y-2">
@@ -341,13 +316,6 @@ export function SetupScreen({
               className="h-6 w-6 rounded border-slate-300 text-teal-500"
             />
           </label>
-
-          {profiles.length > 0 && visibleProfileCount === 0 ? (
-            <div className="rounded-[1.5rem] bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
-              Kiosk ekraninda su an hic profil gorunmeyecek. Devam edersen once bos ekran acilir;
-              sonra PIN girisiyle bir profili gorunur yapabilirsin.
-            </div>
-          ) : null}
 
           {errorMessage ? (
             <div className="rounded-[1.5rem] bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">

@@ -17,7 +17,7 @@ export async function POST(request: Request) {
       name: body.name.trim(),
       avatar: body.avatar.trim(),
       color: body.color.trim(),
-      visible_in_kiosk: body.visible_in_kiosk !== false
+      visible_in_kiosk: true
     });
 
     return jsonOk(await getDashboardSnapshot());

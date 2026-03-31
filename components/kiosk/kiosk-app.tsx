@@ -427,16 +427,7 @@ export function KioskApp({ mode }: KioskAppProps) {
   }, [celebration, data?.family?.audio_enabled, data?.users]);
 
   const allUsers = useMemo(() => data?.users ?? [], [data?.users]);
-  const profileUsers = useMemo(
-    () => allUsers.filter((user) => user.visible_in_kiosk),
-    [allUsers]
-  );
-  const quickRestoreUser = useMemo(
-    () => allUsers.find((user) => !user.visible_in_kiosk && user.role === "ebeveyn") ??
-      allUsers.find((user) => !user.visible_in_kiosk) ??
-      null,
-    [allUsers]
-  );
+  const profileUsers = useMemo(() => allUsers, [allUsers]);
   const referenceNow = useMemo(() => clockNow ?? new Date(), [clockNow]);
 
   const selectedUser = useMemo(() => {
@@ -589,35 +580,11 @@ export function KioskApp({ mode }: KioskAppProps) {
       <>
         <div className="app-surface flex min-h-screen items-center justify-center p-6">
           <div className="glass-panel-strong max-w-xl rounded-[2rem] p-8 text-center">
-            <h1 className="text-3xl font-semibold">
-              {allUsers.length === 0 ? "Profiller bulunamadi" : "Kioskta gosterilen profil yok"}
-            </h1>
+            <h1 className="text-3xl font-semibold">Profiller bulunamadi</h1>
             <p className="mt-3 text-[color:var(--text-muted)]">
-              {allUsers.length === 0
-                ? "Kullanici listesi bos. Supabase senkronizasyonunu yenileyip tekrar dene."
-                : "Tum profiller kiosk disi birakilmis. Yonetim panelinden en az bir profili gorunur yapabilirsin."}
+              Kullanici listesi bos. Supabase senkronizasyonunu yenileyip tekrar dene.
             </p>
             <div className="mt-5 flex flex-wrap justify-center gap-3">
-              {data.session.parentAuthenticated && quickRestoreUser ? (
-                <button
-                  onClick={async () => {
-                    await saveUser({
-                      id: quickRestoreUser.id,
-                      name: quickRestoreUser.name,
-                      role: quickRestoreUser.role,
-                      avatar: quickRestoreUser.avatar,
-                      color: quickRestoreUser.color,
-                      birthdate: quickRestoreUser.birthdate ?? "",
-                      visible_in_kiosk: true
-                    });
-                  }}
-                  className="rounded-[1.4rem] bg-emerald-600 px-5 py-3 font-semibold text-white"
-                >
-                  {quickRestoreUser.role === "ebeveyn"
-                    ? "Ebeveyn profilini goster"
-                    : "Bir profili goster"}
-                </button>
-              ) : null}
               {allUsers.length > 0 ? (
                 <button
                   onClick={() => {
