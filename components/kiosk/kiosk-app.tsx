@@ -100,6 +100,8 @@ const SCHEDULED_BLOCK_ORDER: Record<Exclude<TimeBlock, "her_zaman">, number> = {
   aksam: 3
 };
 
+const TASK_GROUP_ORDER: TimeBlock[] = ["sabah", "ogleden_sonra", "aksam", "her_zaman"];
+
 function getTurkishBlockLabel(block: ActiveTimeBlock | TimeBlock) {
   switch (block) {
     case "sabah":
@@ -497,6 +499,15 @@ export function KioskApp({ mode }: KioskAppProps) {
         )
       ),
     [currentDayPart, incompleteTodayTasks]
+  );
+
+  const groupedTodayTasks = useMemo(
+    () =>
+      TASK_GROUP_ORDER.map((block) => ({
+        block,
+        tasks: todayTasks.filter((task) => task.time_block === block)
+      })).filter((group) => group.tasks.length > 0),
+    [todayTasks]
   );
 
   const celebrationUser =
@@ -950,96 +961,116 @@ export function KioskApp({ mode }: KioskAppProps) {
                 theme={selectedTheme}
               />
             ) : (
-              <section
-                className={`kid-task-grid ${todayTasks.length > 1 ? "kid-task-grid-multi" : ""} mt-5 grid gap-4`}
-              >
-                {todayTasks.map((task, index) => {
-                  const taskActionKey = `${task.id}:${selectedUser.id}:${todayDateKey}`;
-                  const pendingTask = pendingTaskKeys.includes(taskActionKey);
-                  const completed = isTaskCompleted(
-                    data.completions,
-                    task.id,
-                    selectedUser.id,
-                    todayDateKey
-                  );
+              <section className="mt-5 space-y-5">
+                {groupedTodayTasks.map((group) => {
+                  const dayPart = getDayPartMeta(group.block);
 
                   return (
-                    <motion.article
-                      key={task.id}
-                      initial={{ opacity: 0, y: 18 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.03, duration: 0.22, ease: "easeOut" }}
-                      className="kid-task-card glass-panel relative overflow-hidden rounded-[2.8rem] p-5 lg:p-6"
-                      style={{
-                        backgroundImage: `linear-gradient(180deg, rgba(255,255,255,0.98) 0%, ${selectedTheme.soft} 62%, ${withAlpha(selectedTheme.accent, "18")} 100%)`,
-                        borderColor: withAlpha(selectedTheme.primary, "2E")
-                      }}
-                    >
-                      <div className="pointer-events-none absolute right-[-2rem] top-[-2rem] h-32 w-32 rounded-full bg-[var(--active-soft)] blur-3xl" />
-                      <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/85 to-transparent" />
-                      <div className="kid-task-layout relative flex h-full flex-col gap-5 md:flex-row md:items-center md:justify-between md:gap-6">
-                        <div className="kid-task-main flex min-w-0 flex-1 items-center gap-4 lg:gap-5">
-                          <div
-                            className="kid-task-icon shrink-0 text-white"
-                            style={{
-                              backgroundImage: `linear-gradient(150deg, ${selectedTheme.primary} 0%, ${selectedTheme.secondary} 76%, ${selectedTheme.accent} 145%)`,
-                              boxShadow: `0 18px 34px ${selectedTheme.glow}`
-                            }}
-                          >
-                            {task.icon || DEFAULT_TASK_ICON}
-                          </div>
-
-                          <div className="kid-task-copy min-w-0 flex-1">
-                            <div className="kid-task-copy-row flex items-center justify-between gap-3">
-                              <h2 className="kid-task-title min-w-0 flex-1 text-[1.85rem] font-black tracking-[-0.05em] text-[color:var(--text-main)] sm:text-[2rem] lg:text-[2.15rem]">
-                                {task.title}
-                              </h2>
-                              <div className="kid-points-badge kid-points-badge-task shrink-0 whitespace-nowrap">
-                                <Star className="h-4 w-4 fill-amber-300 text-amber-300" />
-                                {task.points}
-                              </div>
-                            </div>
-                          </div>
+                    <section key={group.block} className="space-y-3">
+                      <div className="flex items-center justify-between gap-3 px-1">
+                        <div className={`kid-daypart-pill ${dayPart.className}`}>
+                          <span aria-hidden="true">{dayPart.emoji}</span>
+                          <span>{dayPart.label}</span>
                         </div>
-
-                        <div className="kid-task-action-wrap">
-                          <button
-                            disabled={pendingTask || completed}
-                            aria-label={
-                              pendingTask
-                                ? "Isleniyor"
-                                : completed
-                                  ? "Tamamlandi"
-                                  : "Tamamla"
-                            }
-                            onClick={() =>
-                              completeTask(
-                                task.id,
-                                selectedUser.id,
-                                todayDateKey,
-                                task.title,
-                                task.points
-                              )
-                            }
-                            className="kid-complete-button kid-complete-button-inline"
-                          >
-                            {pendingTask ? (
-                              <span className="kid-complete-button-content">
-                                <RefreshCw className="h-6 w-6 animate-spin" />
-                                <span className="kid-complete-label">Isleniyor</span>
-                              </span>
-                            ) : (
-                              <span className="kid-complete-button-content">
-                                <span className="kid-complete-glyph">
-                                  <Check className="h-7 w-7 stroke-[3.2]" />
-                                </span>
-                                <span className="kid-complete-label">Tamamla</span>
-                              </span>
-                            )}
-                          </button>
-                        </div>
+                        <span className="text-sm font-semibold text-white/72">
+                          {group.tasks.length} gorev
+                        </span>
                       </div>
-                    </motion.article>
+
+                      <div
+                        className={`kid-task-grid ${group.tasks.length > 1 ? "kid-task-grid-multi" : ""} grid gap-4`}
+                      >
+                        {group.tasks.map((task, index) => {
+                          const taskActionKey = `${task.id}:${selectedUser.id}:${todayDateKey}`;
+                          const pendingTask = pendingTaskKeys.includes(taskActionKey);
+                          const completed = isTaskCompleted(
+                            data.completions,
+                            task.id,
+                            selectedUser.id,
+                            todayDateKey
+                          );
+
+                          return (
+                            <motion.article
+                              key={task.id}
+                              initial={{ opacity: 0, y: 18 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: index * 0.03, duration: 0.22, ease: "easeOut" }}
+                              className="kid-task-card glass-panel relative overflow-hidden rounded-[2.8rem] p-5 lg:p-6"
+                              style={{
+                                backgroundImage: `linear-gradient(180deg, rgba(255,255,255,0.98) 0%, ${selectedTheme.soft} 62%, ${withAlpha(selectedTheme.accent, "18")} 100%)`,
+                                borderColor: withAlpha(selectedTheme.primary, "2E")
+                              }}
+                            >
+                              <div className="pointer-events-none absolute right-[-2rem] top-[-2rem] h-32 w-32 rounded-full bg-[var(--active-soft)] blur-3xl" />
+                              <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/85 to-transparent" />
+                              <div className="kid-task-layout relative flex h-full flex-col gap-5 md:flex-row md:items-center md:justify-between md:gap-6">
+                                <div className="kid-task-main flex min-w-0 flex-1 items-center gap-4 lg:gap-5">
+                                  <div
+                                    className="kid-task-icon shrink-0 text-white"
+                                    style={{
+                                      backgroundImage: `linear-gradient(150deg, ${selectedTheme.primary} 0%, ${selectedTheme.secondary} 76%, ${selectedTheme.accent} 145%)`,
+                                      boxShadow: `0 18px 34px ${selectedTheme.glow}`
+                                    }}
+                                  >
+                                    {task.icon || DEFAULT_TASK_ICON}
+                                  </div>
+
+                                  <div className="kid-task-copy min-w-0 flex-1">
+                                    <div className="kid-task-copy-row flex items-center justify-between gap-3">
+                                      <h2 className="kid-task-title min-w-0 flex-1 text-[1.85rem] font-black tracking-[-0.05em] text-[color:var(--text-main)] sm:text-[2rem] lg:text-[2.15rem]">
+                                        {task.title}
+                                      </h2>
+                                      <div className="kid-points-badge kid-points-badge-task shrink-0 whitespace-nowrap">
+                                        <Star className="h-4 w-4 fill-amber-300 text-amber-300" />
+                                        {task.points}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="kid-task-action-wrap">
+                                  <button
+                                    disabled={pendingTask || completed}
+                                    aria-label={
+                                      pendingTask
+                                        ? "Isleniyor"
+                                        : completed
+                                          ? "Tamamlandi"
+                                          : "Tamamla"
+                                    }
+                                    onClick={() =>
+                                      completeTask(
+                                        task.id,
+                                        selectedUser.id,
+                                        todayDateKey,
+                                        task.title,
+                                        task.points
+                                      )
+                                    }
+                                    className="kid-complete-button kid-complete-button-inline"
+                                  >
+                                    {pendingTask ? (
+                                      <span className="kid-complete-button-content">
+                                        <RefreshCw className="h-6 w-6 animate-spin" />
+                                        <span className="kid-complete-label">Isleniyor</span>
+                                      </span>
+                                    ) : (
+                                      <span className="kid-complete-button-content">
+                                        <span className="kid-complete-glyph">
+                                          <Check className="h-7 w-7 stroke-[3.2]" />
+                                        </span>
+                                        <span className="kid-complete-label">Tamamla</span>
+                                      </span>
+                                    )}
+                                  </button>
+                                </div>
+                              </div>
+                            </motion.article>
+                          );
+                        })}
+                      </div>
+                    </section>
                   );
                 })}
               </section>
