@@ -29,7 +29,8 @@ function createProfile(role: UserRole): SetupProfileDraft {
     role,
     avatar: getDefaultAvatar(role),
     color: role === PARENT_ROLE ? "#2DD4BF" : "#60A5FA",
-    birthdate: null
+    birthdate: null,
+    visible_in_kiosk: role !== PARENT_ROLE
   };
 }
 
@@ -85,7 +86,7 @@ export function SetupScreen({
                 Aileni hazirla
               </h1>
               <p className="max-w-xl text-sm leading-6 text-slate-600 sm:text-base">
-                Aile adini yaz, ebeveyn PIN&apos;ini belirle ve ilk profillerini ekle.
+                Aile adini yaz, admin PIN&apos;ini belirle ve ilk profillerini ekle.
               </p>
             </div>
 
@@ -136,7 +137,7 @@ export function SetupScreen({
                   className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-sm font-bold text-white"
                 >
                   <Plus className="h-4 w-4" />
-                  Ebeveyn ekle
+                  Admin ekle
                 </button>
                 <button
                   type="button"
@@ -161,7 +162,7 @@ export function SetupScreen({
                         Profil {index + 1}
                       </div>
                       <div className="text-sm font-semibold text-slate-700">
-                        {profile.role === PARENT_ROLE ? "Ebeveyn profili" : "Cocuk profili"}
+                        {profile.role === PARENT_ROLE ? "Admin profili" : "Cocuk profili"}
                       </div>
                     </div>
 
@@ -242,14 +243,42 @@ export function SetupScreen({
                               ...current,
                               role,
                               avatar: normalizeAvatarForRole(role, current.avatar),
-                              birthdate: role === PARENT_ROLE ? null : current.birthdate
+                              birthdate: role === PARENT_ROLE ? null : current.birthdate,
+                              visible_in_kiosk:
+                                current.role === role
+                                  ? current.visible_in_kiosk
+                                  : role !== PARENT_ROLE
                             }));
                           }}
                           className="w-full rounded-[1.3rem] border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-emerald-400 focus:shadow-[0_0_0_4px_rgba(16,185,129,0.12)]"
                         >
-                          <option value={PARENT_ROLE}>Ebeveyn</option>
+                          <option value={PARENT_ROLE}>Admin</option>
                           <option value={CHILD_ROLE}>Cocuk</option>
                         </select>
+                      </label>
+
+                      <label className="flex items-center justify-between rounded-[1.3rem] border border-slate-200 bg-slate-50 px-4 py-3">
+                        <div className="pr-4">
+                          <div className="text-sm font-semibold text-slate-900">
+                            Kioskta goster
+                          </div>
+                          <div className="text-xs leading-5 text-slate-500">
+                            {profile.role === PARENT_ROLE
+                              ? "Admin profili tablette listelensin istiyorsan ac."
+                              : "Bu profil kiosk ana ekraninda gorunsun."}
+                          </div>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={profile.visible_in_kiosk !== false}
+                          onChange={(event) =>
+                            updateProfile(index, (current) => ({
+                              ...current,
+                              visible_in_kiosk: event.target.checked
+                            }))
+                          }
+                          className="h-5 w-5 rounded border-slate-300 text-emerald-600"
+                        />
                       </label>
 
                       <label className="block space-y-2">

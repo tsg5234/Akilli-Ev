@@ -45,6 +45,7 @@ import type {
 const USERNAME_PATTERN = /^[a-z0-9._-]{3,24}$/;
 const CHILD_ROLE = "çocuk";
 const CHILD_USER_PREFIX = "__child__:";
+const HIDDEN_USER_PREFIX = "__hidden__:";
 const ACCOUNT_USER_PREFIX = "__account__:";
 const ACCOUNT_PENDING_COLOR = "#0F172A";
 const ACCOUNT_READY_COLOR = "#1D4ED8";
@@ -118,8 +119,20 @@ function isAccountMarkerName(name: string) {
   return name.startsWith(ACCOUNT_USER_PREFIX);
 }
 
-function isStoredChildName(name: string) {
-  return name.startsWith(CHILD_USER_PREFIX);
+function isStoredHiddenName(name: string) {
+  return name.startsWith(HIDDEN_USER_PREFIX);
+}
+
+function stripStoredVisibilityPrefix(name: string) {
+  return isStoredHiddenName(name) ? name.slice(HIDDEN_USER_PREFIX.length) : name;
+}
+
+function stripStoredProfileName(name: string) {
+  const visibleName = stripStoredVisibilityPrefix(name);
+
+  return visibleName.startsWith(CHILD_USER_PREFIX)
+    ? visibleName.slice(CHILD_USER_PREFIX.length)
+    : visibleName;
 }
 
 function isAccountUserRecord(user: Pick<UserRecord, "name"> | Pick<AccountUserRecord, "name">) {
@@ -134,15 +147,24 @@ function normalizeUserRole(role: string): UserRecord["role"] {
   return role === "ebeveyn" ? "ebeveyn" : CHILD_ROLE;
 }
 
-function getStoredProfileName(name: string, role: UserRecord["role"]) {
-  return role === CHILD_ROLE ? `${CHILD_USER_PREFIX}${name}` : name;
+function getStoredProfileName(
+  name: string,
+  role: UserRecord["role"],
+  visibleInKiosk = true
+) {
+  const baseName = role === CHILD_ROLE ? `${CHILD_USER_PREFIX}${name}` : name;
+
+  return visibleInKiosk ? baseName : `${HIDDEN_USER_PREFIX}${baseName}`;
 }
 
 function normalizeUserRecord(user: UserRecord): UserRecord {
+  const storedName = stripStoredVisibilityPrefix(user.name);
+
   return {
     ...user,
-    name: isStoredChildName(user.name) ? user.name.slice(CHILD_USER_PREFIX.length) : user.name,
-    role: isStoredChildName(user.name) ? CHILD_ROLE : normalizeUserRole(user.role)
+    name: stripStoredProfileName(user.name),
+    role: storedName.startsWith(CHILD_USER_PREFIX) ? CHILD_ROLE : normalizeUserRole(user.role),
+    visible_in_kiosk: !isStoredHiddenName(user.name)
   };
 }
 
@@ -293,12 +315,13 @@ async function insertProfileUser(
     avatar: string;
     color: string;
     birthdate: string | null;
+    visibleInKiosk: boolean;
   }
 ) {
   const supabase = createAdminClient();
   const base = {
     family_id: familyId,
-    name: getStoredProfileName(profile.name, profile.role),
+    name: getStoredProfileName(profile.name, profile.role, profile.visibleInKiosk),
     avatar: profile.avatar,
     color: profile.color,
     birthdate: profile.birthdate
@@ -325,12 +348,13 @@ async function updateProfileUser(
     avatar: string;
     color: string;
     birthdate: string | null;
+    visibleInKiosk: boolean;
   }
 ) {
   const supabase = createAdminClient();
   const base = {
     family_id: familyId,
-    name: getStoredProfileName(profile.name, profile.role),
+    name: getStoredProfileName(profile.name, profile.role, profile.visibleInKiosk),
     avatar: profile.avatar,
     color: profile.color,
     birthdate: profile.birthdate
@@ -476,7 +500,8 @@ export async function bootstrapApp(account: AuthAccount, payload: SetupPayload) 
     role: profile.role,
     avatar: profile.avatar.trim(),
     color: profile.color.trim(),
-    birthdate: profile.birthdate || null
+    birthdate: profile.birthdate || null,
+    visible_in_kiosk: profile.visible_in_kiosk !== false
   }));
 
   if (sanitizedProfiles.length === 0) {
@@ -524,7 +549,8 @@ export async function bootstrapApp(account: AuthAccount, payload: SetupPayload) 
         role: normalizeUserRole(profile.role),
         avatar: profile.avatar,
         color: profile.color,
-        birthdate: profile.birthdate
+        birthdate: profile.birthdate,
+        visibleInKiosk: profile.visible_in_kiosk
       })
     )
   );
@@ -775,7 +801,8 @@ export async function saveUser(familyId: string, payload: UserFormPayload) {
       role: normalizeUserRole(payload.role),
       avatar: payload.avatar,
       color: payload.color,
-      birthdate: payload.birthdate || null
+      birthdate: payload.birthdate || null,
+      visibleInKiosk: payload.visible_in_kiosk !== false
     });
 
     return;
@@ -786,7 +813,8 @@ export async function saveUser(familyId: string, payload: UserFormPayload) {
     role: normalizeUserRole(payload.role),
     avatar: payload.avatar,
     color: payload.color,
-    birthdate: payload.birthdate || null
+    birthdate: payload.birthdate || null,
+    visibleInKiosk: payload.visible_in_kiosk !== false
   });
 }
 

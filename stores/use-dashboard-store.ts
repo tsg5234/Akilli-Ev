@@ -96,7 +96,13 @@ function pickDefaultProfile(data: DashboardPayload | null) {
     return null;
   }
 
-  return data.users.find((user) => user.role === "\u00e7ocuk")?.id ?? data.users[0]?.id ?? null;
+  const kioskUsers = data.users.filter((user) => user.visible_in_kiosk);
+
+  if (kioskUsers.length === 0) {
+    return null;
+  }
+
+  return kioskUsers.find((user) => user.role === "\u00e7ocuk")?.id ?? kioskUsers[0]?.id ?? null;
 }
 
 function withDashboardState(

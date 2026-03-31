@@ -120,6 +120,13 @@ function getPublicFamilyRecord(family: LocalFamilyRecord): FamilyRecord {
   };
 }
 
+function normalizeLocalUserRecord(user: UserRecord): UserRecord {
+  return {
+    ...user,
+    visible_in_kiosk: user.visible_in_kiosk !== false
+  };
+}
+
 function getFamilyState(familyId: string) {
   const familyState = getState().families[familyId];
 
@@ -150,7 +157,7 @@ function toSnapshot(session: AppSession | null): DashboardPayload {
     setupRequired: false,
     family: getPublicFamilyRecord(familyState.family),
     session: getDashboardSession(session),
-    users: clone(familyState.users),
+    users: clone(familyState.users).map(normalizeLocalUserRecord),
     tasks: clone(familyState.tasks),
     completions: clone(familyState.completions),
     rewards: clone(familyState.rewards),
@@ -241,6 +248,7 @@ export async function bootstrapLocalApp(accountId: string, payload: SetupPayload
     avatar: profile.avatar.trim(),
     color: profile.color.trim(),
     birthdate: profile.birthdate || null,
+    visible_in_kiosk: profile.visible_in_kiosk !== false,
     points: 0,
     created_at: createdAt
   }));
@@ -318,6 +326,7 @@ export async function saveLocalUser(familyId: string, payload: UserFormPayload) 
     target.avatar = payload.avatar;
     target.color = payload.color;
     target.birthdate = payload.birthdate || null;
+    target.visible_in_kiosk = payload.visible_in_kiosk !== false;
     return;
   }
 
@@ -329,6 +338,7 @@ export async function saveLocalUser(familyId: string, payload: UserFormPayload) 
     avatar: payload.avatar,
     color: payload.color,
     birthdate: payload.birthdate || null,
+    visible_in_kiosk: payload.visible_in_kiosk !== false,
     points: 0,
     created_at: nowIso()
   });

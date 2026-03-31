@@ -16,7 +16,8 @@ export async function POST(request: Request) {
       ...body,
       name: body.name.trim(),
       avatar: body.avatar.trim(),
-      color: body.color.trim()
+      color: body.color.trim(),
+      visible_in_kiosk: body.visible_in_kiosk !== false
     });
 
     return jsonOk(await getDashboardSnapshot());

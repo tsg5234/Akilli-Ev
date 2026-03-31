@@ -426,7 +426,11 @@ export function KioskApp({ mode }: KioskAppProps) {
     void playSuccessAudio(userName);
   }, [celebration, data?.family?.audio_enabled, data?.users]);
 
-  const profileUsers = useMemo(() => data?.users ?? [], [data?.users]);
+  const allUsers = useMemo(() => data?.users ?? [], [data?.users]);
+  const profileUsers = useMemo(
+    () => allUsers.filter((user) => user.visible_in_kiosk),
+    [allUsers]
+  );
   const referenceNow = useMemo(() => clockNow ?? new Date(), [clockNow]);
 
   const selectedUser = useMemo(() => {
@@ -437,7 +441,6 @@ export function KioskApp({ mode }: KioskAppProps) {
     return (
       profileUsers.find((user) => user.id === activeProfileId) ??
       profileUsers[0] ??
-      data.users[0] ??
       null
     );
   }, [activeProfileId, data, profileUsers]);
@@ -500,7 +503,7 @@ export function KioskApp({ mode }: KioskAppProps) {
 
   const celebrationUser =
     celebration && data
-      ? data.users.find((user) => user.id === celebration.userId) ?? null
+      ? allUsers.find((user) => user.id === celebration.userId) ?? null
       : null;
 
   if (loading && !data) {
@@ -579,16 +582,37 @@ export function KioskApp({ mode }: KioskAppProps) {
     return (
       <div className="app-surface flex min-h-screen items-center justify-center p-6">
         <div className="glass-panel-strong max-w-xl rounded-[2rem] p-8 text-center">
-          <h1 className="text-3xl font-semibold">Profiller bulunamadi</h1>
+          <h1 className="text-3xl font-semibold">
+            {allUsers.length === 0 ? "Profiller bulunamadi" : "Kioskta gosterilen profil yok"}
+          </h1>
           <p className="mt-3 text-[color:var(--text-muted)]">
-            Kullanici listesi bos. Supabase senkronizasyonunu yenileyip tekrar dene.
+            {allUsers.length === 0
+              ? "Kullanici listesi bos. Supabase senkronizasyonunu yenileyip tekrar dene."
+              : "Tum profiller kiosk disi birakilmis. Ebeveyn panelinden en az bir profili gorunur yapabilirsin."}
           </p>
-          <button
-            onClick={() => void loadDashboard()}
-            className="mt-5 rounded-[1.4rem] bg-slate-950 px-5 py-3 font-semibold text-white"
-          >
-            Tekrar dene
-          </button>
+          <div className="mt-5 flex flex-wrap justify-center gap-3">
+            {allUsers.length > 0 ? (
+              <button
+                onClick={() => {
+                  if (data.session.parentAuthenticated) {
+                    openAdmin();
+                    return;
+                  }
+
+                  openLogin();
+                }}
+                className="rounded-[1.4rem] bg-slate-950 px-5 py-3 font-semibold text-white"
+              >
+                {data.session.parentAuthenticated ? "Yonetimi ac" : "Ebeveyn girisi"}
+              </button>
+            ) : null}
+            <button
+              onClick={() => void loadDashboard()}
+              className="rounded-[1.4rem] bg-slate-200 px-5 py-3 font-semibold text-slate-800"
+            >
+              Tekrar dene
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -768,7 +792,7 @@ export function KioskApp({ mode }: KioskAppProps) {
               <div className="kid-profile-grid relative mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {profileUsers.map((user, index) => {
                   const userTheme = getProfileTheme(user.color);
-                  const roleLabel = user.role === "ebeveyn" ? "Ebeveyn" : "Cocuk";
+                  const roleLabel = user.role === "ebeveyn" ? "Admin" : "Cocuk";
 
                   return (
                     <motion.button

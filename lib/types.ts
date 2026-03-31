@@ -23,6 +23,7 @@ export interface UserRecord {
   avatar: string;
   color: string;
   birthdate: string | null;
+  visible_in_kiosk: boolean;
   points: number;
   created_at: string;
 }
@@ -123,6 +124,7 @@ export interface SetupPayload {
     avatar: string;
     color: string;
     birthdate?: string | null;
+    visible_in_kiosk?: boolean;
   }>;
   includeSampleData: boolean;
 }
@@ -139,6 +141,7 @@ export interface UserFormPayload {
   avatar: string;
   color: string;
   birthdate?: string | null;
+  visible_in_kiosk?: boolean;
 }
 
 export interface TaskFormPayload {

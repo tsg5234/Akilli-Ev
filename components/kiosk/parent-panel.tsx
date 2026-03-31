@@ -48,7 +48,8 @@ const userDefaults: UserFormPayload = {
   role: "çocuk",
   avatar: getDefaultAvatar("çocuk"),
   color: "#FB923C",
-  birthdate: ""
+  birthdate: "",
+  visible_in_kiosk: true
 };
 
 const taskDefaults: TaskFormPayload = {
@@ -169,7 +170,7 @@ export function ParentPanel(props: ParentPanelProps) {
 
   const usersTab = (
     <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
-      <Card title="Profil düzenleyici" description="Ebeveyn ve çocuk profillerini buradan yönetin.">
+      <Card title="Profil düzenleyici" description="Admin ve çocuk profillerini buradan yönetin.">
         <div className="space-y-4">
           <label className="block space-y-2">
             <Label>İsim</Label>
@@ -193,13 +194,17 @@ export function ParentPanel(props: ParentPanelProps) {
                       current.avatar
                     ),
                     birthdate:
-                      event.target.value === "ebeveyn" ? null : current.birthdate
+                      event.target.value === "ebeveyn" ? null : current.birthdate,
+                    visible_in_kiosk:
+                      current.role === (event.target.value as UserFormPayload["role"])
+                        ? current.visible_in_kiosk
+                        : event.target.value !== "ebeveyn"
                   }))
                 }
                 className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3"
               >
                 <option value="çocuk">Çocuk</option>
-                <option value="ebeveyn">Ebeveyn</option>
+                <option value="ebeveyn">Admin</option>
               </select>
             </label>
             <label className="block space-y-2">
@@ -231,6 +236,25 @@ export function ParentPanel(props: ParentPanelProps) {
               </div>
             </label>
           </div>
+          <label className="flex items-center justify-between rounded-[1.5rem] border border-slate-200 bg-white px-4 py-4">
+            <div>
+              <div className="font-semibold">Kioskta goster</div>
+              <div className="text-sm text-[color:var(--text-muted)]">
+                Kapaliysa profil ana secim ekraninda gorunmez.
+              </div>
+            </div>
+            <input
+              type="checkbox"
+              checked={userDraft.visible_in_kiosk !== false}
+              onChange={(event) =>
+                setUserDraft((current) => ({
+                  ...current,
+                  visible_in_kiosk: event.target.checked
+                }))
+              }
+              className="h-5 w-5"
+            />
+          </label>
           <div className="flex gap-3">
             <button
               onClick={() => onSaveUser(userDraft)}
@@ -261,7 +285,8 @@ export function ParentPanel(props: ParentPanelProps) {
                   role: user.role,
                   avatar: user.avatar,
                   color: user.color,
-                  birthdate: user.birthdate ?? ""
+                  birthdate: user.birthdate ?? "",
+                  visible_in_kiosk: user.visible_in_kiosk
                 })
               }
               className="rounded-[1.6rem] border border-slate-200 bg-white/80 p-4 text-left"
@@ -276,7 +301,8 @@ export function ParentPanel(props: ParentPanelProps) {
                 <div>
                   <div className="text-lg font-semibold">{user.name}</div>
                   <div className="text-sm text-[color:var(--text-muted)]">
-                    {user.role} • {user.points} puan
+                    {user.role === "ebeveyn" ? "admin" : "çocuk"} • {user.points} puan
+                    {user.visible_in_kiosk ? " • kioskta gorunur" : " • kioskta gizli"}
                   </div>
                 </div>
               </div>
