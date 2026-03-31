@@ -72,14 +72,16 @@ const rewardDefaults: RewardFormPayload = {
 function Card({
   title,
   description,
-  children
+  children,
+  className
 }: {
   title: string;
   description: string;
   children: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <section className="glass-panel rounded-[2rem] p-5">
+    <section className={`glass-panel rounded-[2rem] p-5 ${className ?? ""}`}>
       <h3 className="text-xl font-semibold">{title}</h3>
       <p className="mt-1 text-sm text-[color:var(--text-muted)]">{description}</p>
       <div className="mt-5">{children}</div>
@@ -169,7 +171,7 @@ export function ParentPanel(props: ParentPanelProps) {
   );
 
   const usersTab = (
-    <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+    <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.05fr)_380px]">
       <Card title="Profil düzenleyici" description="Admin ve çocuk profillerini buradan yönetin.">
         <div className="space-y-4">
           <label className="block space-y-2">
@@ -274,8 +276,12 @@ export function ParentPanel(props: ParentPanelProps) {
         </div>
       </Card>
 
-      <Card title="Mevcut profiller" description="Düzenlemek için bir profile dokunun.">
-        <div className="grid gap-3 md:grid-cols-2">
+      <Card
+        title="Mevcut profiller"
+        description="Düzenlemek için bir profile dokunun."
+        className="xl:sticky xl:top-0"
+      >
+        <div className="soft-scrollbar grid max-h-[calc(100dvh-17rem)] gap-3 overflow-y-auto pr-1 md:grid-cols-2 xl:grid-cols-1">
           {data?.users.map((user) => (
             <button
               key={user.id}
@@ -887,8 +893,8 @@ export function ParentPanel(props: ParentPanelProps) {
   const body = !data?.session.parentAuthenticated
     ? lockedView
     : (
-      <div className="flex min-h-0 flex-1 flex-col gap-4 xl:grid xl:grid-cols-[220px_minmax(0,1fr)]">
-        <aside className="glass-panel rounded-[2rem] p-3 lg:p-4 xl:min-h-0">
+      <div className="flex min-h-0 flex-1 flex-col gap-4 xl:grid xl:grid-cols-[220px_minmax(0,1fr)] xl:items-start">
+        <aside className="glass-panel rounded-[2rem] p-3 lg:p-4 xl:sticky xl:top-0 xl:min-h-0">
           <div className="mb-4 px-2">
             <div className="text-sm font-semibold uppercase tracking-[0.24em] text-teal-700">Ebeveyn paneli</div>
             <div className="mt-2 text-2xl font-semibold">{data.family?.name}</div>
@@ -939,7 +945,7 @@ export function ParentPanel(props: ParentPanelProps) {
 
   if (standalone) {
     return (
-      <div className="app-surface min-h-screen p-0 sm:p-3 lg:p-4">
+      <div className="app-surface min-h-screen overflow-hidden p-0 sm:p-3 lg:p-4">
         <div className="mx-auto h-[100dvh] w-full max-w-[1600px] sm:h-[calc(100dvh-1.5rem)] lg:h-[calc(100dvh-2rem)]">
           {panelShell}
         </div>
