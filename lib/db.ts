@@ -69,7 +69,18 @@ interface AuthAccount {
 }
 
 function fail(message: string, error: unknown): never {
-  const detail = error instanceof Error ? error.message : "Bilinmeyen hata";
+  const detail =
+    error instanceof Error
+      ? error.message
+      : error && typeof error === "object" && "message" in error
+        ? [
+            String((error as { message?: unknown }).message ?? ""),
+            "details" in error ? String((error as { details?: unknown }).details ?? "") : "",
+            "hint" in error ? String((error as { hint?: unknown }).hint ?? "") : ""
+          ]
+            .filter(Boolean)
+            .join(" | ")
+        : "Bilinmeyen hata";
   throw new Error(`${message}: ${detail}`);
 }
 
