@@ -580,41 +580,68 @@ export function KioskApp({ mode }: KioskAppProps) {
 
   if (!selectedUser) {
     return (
-      <div className="app-surface flex min-h-screen items-center justify-center p-6">
-        <div className="glass-panel-strong max-w-xl rounded-[2rem] p-8 text-center">
-          <h1 className="text-3xl font-semibold">
-            {allUsers.length === 0 ? "Profiller bulunamadi" : "Kioskta gosterilen profil yok"}
-          </h1>
-          <p className="mt-3 text-[color:var(--text-muted)]">
-            {allUsers.length === 0
-              ? "Kullanici listesi bos. Supabase senkronizasyonunu yenileyip tekrar dene."
-              : "Tum profiller kiosk disi birakilmis. Ebeveyn panelinden en az bir profili gorunur yapabilirsin."}
-          </p>
-          <div className="mt-5 flex flex-wrap justify-center gap-3">
-            {allUsers.length > 0 ? (
-              <button
-                onClick={() => {
-                  if (data.session.parentAuthenticated) {
-                    openAdmin();
-                    return;
-                  }
+      <>
+        <div className="app-surface flex min-h-screen items-center justify-center p-6">
+          <div className="glass-panel-strong max-w-xl rounded-[2rem] p-8 text-center">
+            <h1 className="text-3xl font-semibold">
+              {allUsers.length === 0 ? "Profiller bulunamadi" : "Kioskta gosterilen profil yok"}
+            </h1>
+            <p className="mt-3 text-[color:var(--text-muted)]">
+              {allUsers.length === 0
+                ? "Kullanici listesi bos. Supabase senkronizasyonunu yenileyip tekrar dene."
+                : "Tum profiller kiosk disi birakilmis. Ebeveyn panelinden en az bir profili gorunur yapabilirsin."}
+            </p>
+            <div className="mt-5 flex flex-wrap justify-center gap-3">
+              {allUsers.length > 0 ? (
+                <button
+                  onClick={() => {
+                    if (data.session.parentAuthenticated) {
+                      openAdmin();
+                      return;
+                    }
 
-                  openLogin();
-                }}
-                className="rounded-[1.4rem] bg-slate-950 px-5 py-3 font-semibold text-white"
+                    openLogin();
+                  }}
+                  className="rounded-[1.4rem] bg-slate-950 px-5 py-3 font-semibold text-white"
+                >
+                  {data.session.parentAuthenticated ? "Yonetimi ac" : "Ebeveyn girisi"}
+                </button>
+              ) : null}
+              <button
+                onClick={() => void loadDashboard()}
+                className="rounded-[1.4rem] bg-slate-200 px-5 py-3 font-semibold text-slate-800"
               >
-                {data.session.parentAuthenticated ? "Yonetimi ac" : "Ebeveyn girisi"}
+                Tekrar dene
               </button>
-            ) : null}
-            <button
-              onClick={() => void loadDashboard()}
-              className="rounded-[1.4rem] bg-slate-200 px-5 py-3 font-semibold text-slate-800"
-            >
-              Tekrar dene
-            </button>
+            </div>
           </div>
         </div>
-      </div>
+
+        <PinModal
+          open={loginOpen}
+          working={working}
+          onClose={closeLogin}
+          onSubmit={async (pin) => {
+            await loginParent(pin);
+          }}
+        />
+
+        <ParentPanel
+          open={adminOpen}
+          data={data}
+          working={working}
+          onClose={closeAdmin}
+          onOpenLogin={openLogin}
+          onSaveUser={saveUser}
+          onSaveTask={saveTask}
+          onSaveReward={saveReward}
+          onResolveRedemption={resolveRedemption}
+          onAdjustPoints={adjustPoints}
+          onResetProgress={resetProgress}
+          onUpdateSettings={updateFamilySettings}
+          onLogout={logoutParent}
+        />
+      </>
     );
   }
 
