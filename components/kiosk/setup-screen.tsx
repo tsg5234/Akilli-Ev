@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { HeartHandshake, KeyRound, Plus, Sparkles, Trash2, Users } from "lucide-react";
+import { Plus, Trash2, Users } from "lucide-react";
 import type { SetupPayload, UserRole } from "@/lib/types";
 
 interface SetupScreenProps {
@@ -18,12 +18,26 @@ type SetupProfileDraft = SetupPayload["profiles"][number];
 const PROFILE_COLORS = ["#2DD4BF", "#FB7185", "#60A5FA", "#F59E0B", "#22C55E", "#A855F7"];
 const PARENT_ROLE: UserRole = "ebeveyn";
 const CHILD_ROLE: UserRole = "çocuk";
+const PARENT_AVATARS = ["👩", "👨", "🧑", "👵", "👴", "🙂", "😎", "🫶"];
+const CHILD_AVATARS = ["🦁", "🐼", "🐯", "🦊", "🐸", "🐻", "🦄", "🚀"];
+
+function getAvatarOptions(role: UserRole) {
+  return role === PARENT_ROLE ? PARENT_AVATARS : CHILD_AVATARS;
+}
+
+function getDefaultAvatar(role: UserRole) {
+  return getAvatarOptions(role)[0];
+}
+
+function normalizeAvatarForRole(role: UserRole, avatar: string) {
+  return getAvatarOptions(role).includes(avatar) ? avatar : getDefaultAvatar(role);
+}
 
 function createProfile(role: UserRole): SetupProfileDraft {
   return {
     name: "",
     role,
-    avatar: role === PARENT_ROLE ? "👨" : "🦁",
+    avatar: getDefaultAvatar(role),
     color: role === PARENT_ROLE ? "#2DD4BF" : "#60A5FA",
     birthdate: null
   };
@@ -58,66 +72,10 @@ export function SetupScreen({
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.32, ease: "easeOut" }}
-        className="glass-panel-strong grid w-full max-w-[1180px] gap-4 overflow-hidden rounded-[2.6rem] p-3 sm:gap-5 sm:p-4 xl:grid-cols-[0.92fr_1.08fr] xl:gap-6 xl:p-6"
+        className="glass-panel-strong w-full max-w-[980px] overflow-hidden rounded-[2.6rem] p-3 sm:p-4"
       >
-        <section
-          className="order-2 relative overflow-hidden rounded-[2.1rem] p-6 text-white sm:p-7 xl:order-1 xl:min-h-[640px] xl:p-9"
-          style={{
-            backgroundImage:
-              "linear-gradient(150deg, #0f172a 0%, #166534 46%, #0ea5e9 100%)"
-          }}
-        >
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.18),transparent_30%),radial-gradient(circle_at_86%_14%,rgba(250,204,21,0.18),transparent_24%),radial-gradient(circle_at_22%_82%,rgba(255,255,255,0.1),transparent_28%)]" />
-          <div className="relative flex h-full flex-col justify-between gap-6">
-            <div className="space-y-5">
-              <span className="inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-sm font-black tracking-[0.08em] text-white/88">
-                <Sparkles className="h-4 w-4" />
-                Kurulum
-              </span>
-
-              <div className="space-y-3">
-                <h1 className="max-w-2xl text-4xl font-black tracking-[-0.06em] sm:text-5xl xl:text-6xl">
-                  Aileni simdi kur.
-                </h1>
-                <p className="max-w-xl text-base leading-7 text-white/76 sm:text-lg">
-                  Aile adini yaz, ebeveyn PIN&apos;ini belirle ve istedigin kadar profil ekle.
-                </p>
-              </div>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-3">
-              {[
-                {
-                  icon: HeartHandshake,
-                  title: "1. Aile",
-                  text: "Sadece sana ait alan olusur."
-                },
-                {
-                  icon: KeyRound,
-                  title: "2. PIN",
-                  text: "Yonetim paneli yine sende kalir."
-                },
-                {
-                  icon: Users,
-                  title: "3. Profiller",
-                  text: "Cocuk ya da ebeveyn fark etmez."
-                }
-              ].map((item) => (
-                <div
-                  key={item.title}
-                  className="rounded-[1.55rem] border border-white/12 bg-white/10 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.16)]"
-                >
-                  <item.icon className="h-5 w-5 text-amber-300" />
-                  <h2 className="mt-3 text-base font-black">{item.title}</h2>
-                  <p className="mt-1 text-sm leading-5 text-white/72">{item.text}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
         <form
-          className="order-1 space-y-5 rounded-[2.1rem] bg-white/92 p-5 text-slate-900 shadow-panel sm:p-6 xl:order-2 xl:p-8"
+          className="space-y-5 rounded-[2.1rem] bg-white/92 p-5 text-slate-900 shadow-panel sm:p-6 lg:p-8"
           onSubmit={async (event) => {
             event.preventDefault();
             await onSubmit({
@@ -128,27 +86,19 @@ export function SetupScreen({
             });
           }}
         >
-          <div className="flex flex-wrap gap-2">
-            {["Aile", "Profil", "Hazirla"].map((item) => (
-              <span
-                key={item}
-                className="rounded-full bg-slate-100 px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-slate-500"
-              >
-                {item}
-              </span>
-            ))}
-          </div>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="space-y-2">
+              <p className="text-sm font-bold uppercase tracking-[0.24em] text-emerald-700">
+                Kurulum
+              </p>
+              <h1 className="text-3xl font-black tracking-[-0.05em] text-slate-950 sm:text-[2.4rem]">
+                Aileni hazirla
+              </h1>
+              <p className="max-w-xl text-sm leading-6 text-slate-600 sm:text-base">
+                Aile adini yaz, ebeveyn PIN&apos;ini belirle ve ilk profillerini ekle.
+              </p>
+            </div>
 
-          <div className="space-y-1">
-            <p className="text-sm font-bold uppercase tracking-[0.24em] text-emerald-700">
-              Son adim
-            </p>
-            <h2 className="text-3xl font-black tracking-[-0.05em] text-slate-950 sm:text-[2.2rem]">
-              Kurulumu tamamla
-            </h2>
-            <p className="text-sm leading-6 text-slate-600">
-              En az bir ebeveyn profili ekle. Istersen daha sonra da profil ekleyebilirsin.
-            </p>
             {username ? (
               <div className="inline-flex rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">
                 Hesap: {username}
@@ -179,10 +129,13 @@ export function SetupScreen({
             </label>
           </div>
 
-          <div className="space-y-4 rounded-[2rem] border border-slate-200 bg-slate-50/85 p-4">
+          <div className="space-y-4 rounded-[2rem] border border-slate-200 bg-slate-50/85 p-4 sm:p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <div className="text-lg font-black text-slate-900">Baslangic profilleri</div>
+                <div className="flex items-center gap-2 text-lg font-black text-slate-900">
+                  <Users className="h-5 w-5 text-emerald-600" />
+                  Baslangic profilleri
+                </div>
                 <div className="text-sm text-slate-600">Istedigin kadar kisi ekleyebilirsin.</div>
               </div>
 
@@ -212,7 +165,7 @@ export function SetupScreen({
                   key={`${index}-${profile.role}`}
                   className="rounded-[1.7rem] border border-slate-200 bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.05)]"
                 >
-                  <div className="mb-4 flex items-center justify-between gap-3">
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <div className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
                         Profil {index + 1}
@@ -237,115 +190,145 @@ export function SetupScreen({
                     </button>
                   </div>
 
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <label className="block space-y-2">
-                      <span className="text-sm font-semibold text-slate-700">Isim</span>
-                      <input
-                        value={profile.name}
-                        onChange={(event) =>
-                          updateProfile(index, (current) => ({
-                            ...current,
-                            name: event.target.value
-                          }))
-                        }
-                        className="w-full rounded-[1.3rem] border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-emerald-400 focus:shadow-[0_0_0_4px_rgba(16,185,129,0.12)]"
-                        placeholder={profile.role === PARENT_ROLE ? "Anne, Baba..." : "Poyraz, Aden..."}
-                      />
-                    </label>
+                  <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+                    <div className="space-y-4">
+                      <label className="block space-y-2">
+                        <span className="text-sm font-semibold text-slate-700">Isim</span>
+                        <input
+                          value={profile.name}
+                          onChange={(event) =>
+                            updateProfile(index, (current) => ({
+                              ...current,
+                              name: event.target.value
+                            }))
+                          }
+                          className="w-full rounded-[1.3rem] border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-emerald-400 focus:shadow-[0_0_0_4px_rgba(16,185,129,0.12)]"
+                          placeholder={profile.role === PARENT_ROLE ? "Anne, Baba..." : "Poyraz, Aden..."}
+                        />
+                      </label>
 
-                    <label className="block space-y-2">
-                      <span className="text-sm font-semibold text-slate-700">Rol</span>
-                      <select
-                        value={profile.role}
-                        onChange={(event) => {
-                          const role = event.target.value as UserRole;
+                      <div className="space-y-2">
+                        <span className="text-sm font-semibold text-slate-700">Avatar</span>
+                        <div className="rounded-[1.3rem] border border-slate-200 bg-slate-50 px-3 py-3">
+                          <div className="mb-3 flex flex-wrap gap-2">
+                            {getAvatarOptions(profile.role).map((avatar) => (
+                              <button
+                                key={`${index}-${avatar}`}
+                                type="button"
+                                onClick={() =>
+                                  updateProfile(index, (current) => ({
+                                    ...current,
+                                    avatar
+                                  }))
+                                }
+                                className={`flex h-12 w-12 items-center justify-center rounded-2xl border text-2xl transition ${
+                                  profile.avatar === avatar
+                                    ? "border-slate-950 bg-slate-950 text-white shadow-[0_10px_22px_rgba(15,23,42,0.18)]"
+                                    : "border-slate-200 bg-white hover:border-slate-300"
+                                }`}
+                                aria-label={`Avatar ${avatar}`}
+                              >
+                                {avatar}
+                              </button>
+                            ))}
+                          </div>
 
-                          updateProfile(index, (current) => ({
-                            ...current,
-                            role,
-                            avatar: role === PARENT_ROLE ? current.avatar || "👨" : current.avatar || "🦁",
-                            birthdate: role === PARENT_ROLE ? null : current.birthdate
-                          }));
-                        }}
-                        className="w-full rounded-[1.3rem] border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-emerald-400 focus:shadow-[0_0_0_4px_rgba(16,185,129,0.12)]"
-                      >
-                        <option value={PARENT_ROLE}>Ebeveyn</option>
-                        <option value={CHILD_ROLE}>Cocuk</option>
-                      </select>
-                    </label>
-
-                    <label className="block space-y-2">
-                      <span className="text-sm font-semibold text-slate-700">Avatar</span>
-                      <input
-                        value={profile.avatar}
-                        onChange={(event) =>
-                          updateProfile(index, (current) => ({
-                            ...current,
-                            avatar: event.target.value
-                          }))
-                        }
-                        className="w-full rounded-[1.3rem] border border-slate-200 bg-white px-4 py-3 text-2xl outline-none transition focus:border-emerald-400 focus:shadow-[0_0_0_4px_rgba(16,185,129,0.12)]"
-                        placeholder="🙂"
-                      />
-                    </label>
-
-                    <label className="block space-y-2">
-                      <span className="text-sm font-semibold text-slate-700">Renk</span>
-                      <div className="rounded-[1.3rem] border border-slate-200 bg-white px-4 py-3">
-                        <div className="mb-3 flex items-center gap-3">
                           <input
-                            type="color"
-                            value={profile.color}
+                            value={profile.avatar}
                             onChange={(event) =>
                               updateProfile(index, (current) => ({
                                 ...current,
-                                color: event.target.value
+                                avatar: event.target.value
                               }))
                             }
-                            className="h-10 w-14 rounded-xl"
+                            className="w-full rounded-[1.1rem] border border-slate-200 bg-white px-3 py-3 text-lg outline-none transition focus:border-emerald-400 focus:shadow-[0_0_0_4px_rgba(16,185,129,0.12)]"
+                            placeholder="Istersen kendi emojini yaz"
                           />
-                          <span className="text-sm font-semibold text-slate-600">{profile.color}</span>
-                        </div>
-
-                        <div className="flex flex-wrap gap-2">
-                          {PROFILE_COLORS.map((color) => (
-                            <button
-                              key={`${index}-${color}`}
-                              type="button"
-                              onClick={() =>
-                                updateProfile(index, (current) => ({
-                                  ...current,
-                                  color
-                                }))
-                              }
-                              className={`h-7 w-7 rounded-full border-2 ${
-                                profile.color === color ? "border-slate-950" : "border-white"
-                              }`}
-                              style={{ backgroundColor: color }}
-                              aria-label={`Renk ${color}`}
-                            />
-                          ))}
                         </div>
                       </div>
-                    </label>
 
-                    <label className="block space-y-2 md:col-span-2">
-                      <span className="text-sm font-semibold text-slate-700">
-                        Dogum tarihi {profile.role === CHILD_ROLE ? "(opsiyonel)" : "(gerekmez)"}
-                      </span>
-                      <input
-                        type="date"
-                        value={profile.birthdate ?? ""}
-                        disabled={profile.role !== CHILD_ROLE}
-                        onChange={(event) =>
-                          updateProfile(index, (current) => ({
-                            ...current,
-                            birthdate: event.target.value || null
-                          }))
-                        }
-                        className="w-full rounded-[1.3rem] border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-emerald-400 focus:shadow-[0_0_0_4px_rgba(16,185,129,0.12)] disabled:cursor-not-allowed disabled:bg-slate-100"
-                      />
-                    </label>
+                      {profile.role === CHILD_ROLE ? (
+                        <label className="block space-y-2">
+                          <span className="text-sm font-semibold text-slate-700">
+                            Dogum tarihi (opsiyonel)
+                          </span>
+                          <input
+                            type="date"
+                            value={profile.birthdate ?? ""}
+                            onChange={(event) =>
+                              updateProfile(index, (current) => ({
+                                ...current,
+                                birthdate: event.target.value || null
+                              }))
+                            }
+                            className="w-full rounded-[1.3rem] border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-emerald-400 focus:shadow-[0_0_0_4px_rgba(16,185,129,0.12)]"
+                          />
+                        </label>
+                      ) : null}
+                    </div>
+
+                    <div className="space-y-4">
+                      <label className="block space-y-2">
+                        <span className="text-sm font-semibold text-slate-700">Rol</span>
+                        <select
+                          value={profile.role}
+                          onChange={(event) => {
+                            const role = event.target.value as UserRole;
+
+                            updateProfile(index, (current) => ({
+                              ...current,
+                              role,
+                              avatar: normalizeAvatarForRole(role, current.avatar),
+                              birthdate: role === PARENT_ROLE ? null : current.birthdate
+                            }));
+                          }}
+                          className="w-full rounded-[1.3rem] border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-emerald-400 focus:shadow-[0_0_0_4px_rgba(16,185,129,0.12)]"
+                        >
+                          <option value={PARENT_ROLE}>Ebeveyn</option>
+                          <option value={CHILD_ROLE}>Cocuk</option>
+                        </select>
+                      </label>
+
+                      <label className="block space-y-2">
+                        <span className="text-sm font-semibold text-slate-700">Renk</span>
+                        <div className="rounded-[1.3rem] border border-slate-200 bg-slate-50 px-3 py-3">
+                          <div className="mb-3 flex items-center gap-3">
+                            <input
+                              type="color"
+                              value={profile.color}
+                              onChange={(event) =>
+                                updateProfile(index, (current) => ({
+                                  ...current,
+                                  color: event.target.value
+                                }))
+                              }
+                              className="h-10 w-14 rounded-xl"
+                            />
+                            <span className="text-sm font-semibold text-slate-600">{profile.color}</span>
+                          </div>
+
+                          <div className="flex flex-wrap gap-2">
+                            {PROFILE_COLORS.map((color) => (
+                              <button
+                                key={`${index}-${color}`}
+                                type="button"
+                                onClick={() =>
+                                  updateProfile(index, (current) => ({
+                                    ...current,
+                                    color
+                                  }))
+                                }
+                                className={`h-8 w-8 rounded-full border-2 transition ${
+                                  profile.color === color ? "border-slate-950 scale-105" : "border-white"
+                                }`}
+                                style={{ backgroundColor: color }}
+                                aria-label={`Renk ${color}`}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      </label>
+                    </div>
                   </div>
                 </div>
               ))}
