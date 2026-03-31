@@ -509,6 +509,10 @@ button {
   margin-left: 0;
 }
 
+.kid-profile-score-floating {
+  z-index: 1;
+}
+
 .kid-profile-score-label {
   font-size: 0.7rem;
 }
