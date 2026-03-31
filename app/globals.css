@@ -861,6 +861,7 @@ button {
   display: flex;
   height: auto;
   flex-direction: column;
+  justify-content: center;
   min-height: 5.25rem;
   padding: 0.62rem 0.78rem;
   border-radius: 1.45rem;
