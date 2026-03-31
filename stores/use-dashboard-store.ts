@@ -52,6 +52,12 @@ interface DashboardStore {
     taskTitle: string,
     points: number
   ) => Promise<void>;
+  undoTaskCompletion: (
+    taskId: string,
+    userId: string,
+    dateKey: string,
+    taskTitle: string
+  ) => Promise<void>;
   requestReward: (rewardId: string, userId: string) => Promise<void>;
   saveUser: (payload: UserFormPayload) => Promise<void>;
   saveTask: (payload: TaskFormPayload) => Promise<void>;
@@ -352,6 +358,42 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
         toast: {
           kind: "hata",
           message: error instanceof Error ? error.message : "Gorev guncellenemedi."
+        }
+      }));
+    }
+  },
+  async undoTaskCompletion(taskId, userId, dateKey, taskTitle) {
+    const taskKey = getTaskActionKey(taskId, userId, dateKey);
+
+    if (get().pendingTaskKeys.includes(taskKey)) {
+      return;
+    }
+
+    set((state) => ({
+      working: true,
+      error: null,
+      pendingTaskKeys: [...state.pendingTaskKeys, taskKey]
+    }));
+
+    try {
+      const data = await requestJson<DashboardPayload>(`/api/tasks/${taskId}/toggle`, {
+        method: "POST",
+        body: JSON.stringify({ userId, dateKey })
+      });
+
+      withDashboardState(set, data);
+      set((state) => ({
+        working: false,
+        pendingTaskKeys: state.pendingTaskKeys.filter((key) => key !== taskKey),
+        toast: { kind: "bilgi", message: `${taskTitle} geri alindi.` }
+      }));
+    } catch (error) {
+      set((state) => ({
+        working: false,
+        pendingTaskKeys: state.pendingTaskKeys.filter((key) => key !== taskKey),
+        toast: {
+          kind: "hata",
+          message: error instanceof Error ? error.message : "Gorev geri alinamadi."
         }
       }));
     }

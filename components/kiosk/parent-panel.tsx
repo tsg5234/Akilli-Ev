@@ -24,6 +24,12 @@ interface ParentPanelProps {
   onSaveReward: (payload: RewardFormPayload) => Promise<void>;
   onResolveRedemption: (redemptionId: string, status: "onaylandi" | "reddedildi") => Promise<void>;
   onAdjustPoints: (userId: string, delta: number, note: string) => Promise<void>;
+  onUndoTaskCompletion: (
+    taskId: string,
+    userId: string,
+    dateKey: string,
+    taskTitle: string
+  ) => Promise<void>;
   onResetProgress: () => Promise<void>;
   onUpdateSettings: (payload: {
     name?: string;
@@ -120,6 +126,7 @@ export function ParentPanel(props: ParentPanelProps) {
     onSaveReward,
     onResolveRedemption,
     onAdjustPoints,
+    onUndoTaskCompletion,
     onResetProgress,
     onUpdateSettings,
     onLogout
@@ -161,6 +168,25 @@ export function ParentPanel(props: ParentPanelProps) {
     () => Object.fromEntries((data?.rewards ?? []).map((reward) => [reward.id, reward])),
     [data?.rewards]
   );
+  const taskLookup = useMemo(
+    () => Object.fromEntries((data?.tasks ?? []).map((task) => [task.id, task])),
+    [data?.tasks]
+  );
+  const selectedPointUser = pointsUserId ? userLookup[pointsUserId] : undefined;
+  const todaysCompletedTasks = useMemo(() => {
+    if (!data || !pointsUserId) {
+      return [];
+    }
+
+    return data.completions
+      .filter((completion) => completion.user_id === pointsUserId && completion.completion_date === data.today.dateKey)
+      .map((completion) => ({
+        completion,
+        task: taskLookup[completion.task_id]
+      }))
+      .filter((item) => item.task)
+      .sort((left, right) => Date.parse(right.completion.created_at) - Date.parse(left.completion.created_at));
+  }, [data, pointsUserId, taskLookup]);
 
   const lockedView = (
     <div className="flex min-h-0 flex-1 items-center justify-center p-8">
@@ -724,25 +750,62 @@ export function ParentPanel(props: ParentPanelProps) {
         </div>
       </Card>
 
-      <Card title="Son hareketler" description="Görev ve ödül geçmişi burada görünür.">
-        <div className="space-y-3">
-          {data?.pointEvents.map((event) => (
-            <div key={event.id} className="flex items-center justify-between rounded-[1.5rem] border border-slate-200 bg-white/80 p-4">
-              <div>
-                <div className="font-semibold">{userLookup[event.user_id]?.name}</div>
-                <div className="text-sm text-[color:var(--text-muted)]">{event.note || "Puan hareketi"}</div>
-              </div>
+      <div className="space-y-5">
+        <Card
+          title="Bugün tamamlananlar"
+          description={`${selectedPointUser?.name ?? "Secili kullanici"} icin yanlis isaretlenen gorevleri geri alin.`}
+        >
+          <div className="space-y-3">
+            {todaysCompletedTasks.map(({ completion, task }) => (
               <div
-                className={`rounded-full px-3 py-1 text-sm font-semibold ${
-                  event.delta >= 0 ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"
-                }`}
+                key={completion.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-[1.5rem] border border-slate-200 bg-white/80 p-4"
               >
-                {event.delta > 0 ? `+${event.delta}` : event.delta} puan
+                <div>
+                  <div className="font-semibold">{task.title}</div>
+                  <div className="text-sm text-[color:var(--text-muted)]">
+                    {TIME_BLOCK_LABELS[task.time_block]} • {task.points} puan
+                  </div>
+                </div>
+                <button
+                  onClick={() =>
+                    onUndoTaskCompletion(task.id, completion.user_id, completion.completion_date, task.title)
+                  }
+                  disabled={working}
+                  className="rounded-full bg-rose-100 px-4 py-2 text-sm font-semibold text-rose-700 disabled:opacity-60"
+                >
+                  Geri al
+                </button>
               </div>
-            </div>
-          ))}
-        </div>
-      </Card>
+            ))}
+            {todaysCompletedTasks.length === 0 ? (
+              <div className="rounded-[1.5rem] bg-white/80 p-4 text-sm text-[color:var(--text-muted)]">
+                Bugun bu kullanici icin tamamlanan gorev yok.
+              </div>
+            ) : null}
+          </div>
+        </Card>
+
+        <Card title="Son hareketler" description="Görev ve ödül geçmişi burada görünür.">
+          <div className="space-y-3">
+            {data?.pointEvents.map((event) => (
+              <div key={event.id} className="flex items-center justify-between rounded-[1.5rem] border border-slate-200 bg-white/80 p-4">
+                <div>
+                  <div className="font-semibold">{userLookup[event.user_id]?.name}</div>
+                  <div className="text-sm text-[color:var(--text-muted)]">{event.note || "Puan hareketi"}</div>
+                </div>
+                <div
+                  className={`rounded-full px-3 py-1 text-sm font-semibold ${
+                    event.delta >= 0 ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"
+                  }`}
+                >
+                  {event.delta > 0 ? `+${event.delta}` : event.delta} puan
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
     </div>
   );
 

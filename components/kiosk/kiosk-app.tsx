@@ -373,6 +373,7 @@ export function KioskApp({ mode }: KioskAppProps) {
     loginParent,
     logoutParent,
     completeTask,
+    undoTaskCompletion,
     saveUser,
     saveTask,
     saveReward,
@@ -653,6 +654,7 @@ export function KioskApp({ mode }: KioskAppProps) {
           onSaveReward={saveReward}
           onResolveRedemption={resolveRedemption}
           onAdjustPoints={adjustPoints}
+          onUndoTaskCompletion={undoTaskCompletion}
           onResetProgress={resetProgress}
           onUpdateSettings={updateFamilySettings}
           onLogout={logoutParent}
@@ -690,6 +692,7 @@ export function KioskApp({ mode }: KioskAppProps) {
           onSaveReward={saveReward}
           onResolveRedemption={resolveRedemption}
           onAdjustPoints={adjustPoints}
+          onUndoTaskCompletion={undoTaskCompletion}
           onResetProgress={resetProgress}
           onUpdateSettings={updateFamilySettings}
           onLogout={logoutParent}
@@ -1108,6 +1111,7 @@ export function KioskApp({ mode }: KioskAppProps) {
         onSaveReward={saveReward}
         onResolveRedemption={resolveRedemption}
         onAdjustPoints={adjustPoints}
+        onUndoTaskCompletion={undoTaskCompletion}
         onResetProgress={resetProgress}
         onUpdateSettings={updateFamilySettings}
         onLogout={logoutParent}
