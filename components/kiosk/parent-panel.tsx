@@ -819,7 +819,7 @@ export function ParentPanel(props: ParentPanelProps) {
               onClick={onLogout}
               className="rounded-[1.4rem] bg-rose-100 px-5 py-3 font-semibold text-rose-700"
             >
-              Oturumu kapat
+              Ebeveyn kilidini kapat
             </button>
           </div>
         </div>
@@ -836,7 +836,7 @@ export function ParentPanel(props: ParentPanelProps) {
     </div>
   );
 
-  const body = !data?.session.authenticated
+  const body = !data?.session.parentAuthenticated
     ? lockedView
     : (
       <div className="grid gap-5 xl:grid-cols-[210px_minmax(0,1fr)]">

@@ -82,13 +82,18 @@ export interface PointEventRecord {
   created_at: string;
 }
 
+export interface DashboardSession {
+  accountAuthenticated: boolean;
+  username: string | null;
+  parentAuthenticated: boolean;
+  role: "ebeveyn" | null;
+}
+
 export interface DashboardPayload {
+  authRequired: boolean;
   setupRequired: boolean;
   family: FamilyRecord | null;
-  session: {
-    authenticated: boolean;
-    role: "ebeveyn" | null;
-  };
+  session: DashboardSession;
   users: UserRecord[];
   tasks: TaskRecord[];
   completions: CompletionRecord[];
@@ -114,6 +119,11 @@ export interface SetupPayload {
   parentName: string;
   pin: string;
   includeSampleData: boolean;
+}
+
+export interface AccountAuthPayload {
+  username: string;
+  password: string;
 }
 
 export interface UserFormPayload {

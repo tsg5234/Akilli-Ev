@@ -10,7 +10,7 @@ interface Context {
 
 export async function POST(request: Request, context: Context) {
   try {
-    await requireParentSession();
+    const session = await requireParentSession();
     const { redemptionId } = await context.params;
     const body = (await request.json()) as { status?: "onaylandi" | "reddedildi" };
 
@@ -18,9 +18,9 @@ export async function POST(request: Request, context: Context) {
       return jsonError("Durum bilgisi gerekli.");
     }
 
-    await resolveReward(redemptionId, body.status);
+    await resolveReward(session.familyId, redemptionId, body.status);
     return jsonOk(await getDashboardSnapshot());
   } catch (error) {
-    return jsonError(error instanceof Error ? error.message : "Talep güncellenemedi", 500);
+    return jsonError(error instanceof Error ? error.message : "Talep guncellenemedi.", 500);
   }
 }

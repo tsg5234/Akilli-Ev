@@ -16,12 +16,14 @@ import {
   Clock3,
   Expand,
   Lock,
+  LogOut,
   MoonStar,
   PanelRightOpen,
   PartyPopper,
   RefreshCw,
   Star
 } from "lucide-react";
+import { AccountScreen } from "@/components/kiosk/account-screen";
 import { CelebrationLayer } from "@/components/kiosk/celebration-layer";
 import { DaySummaryPanel } from "@/components/kiosk/day-summary-panel";
 import { ParentPanel } from "@/components/kiosk/parent-panel";
@@ -346,6 +348,7 @@ function getActiveDayPartMeta(timeBlock: ActiveTimeBlock) {
 export function KioskApp({ mode }: KioskAppProps) {
   const [screen, setScreen] = useState<KidScreen>("profiles");
   const [clockNow, setClockNow] = useState<Date | null>(null);
+  const [setupError, setSetupError] = useState<string | null>(null);
   const {
     data,
     activeProfileId,
@@ -365,6 +368,9 @@ export function KioskApp({ mode }: KioskAppProps) {
     closeAdmin,
     clearToast,
     clearCelebration,
+    loginAccount,
+    registerAccount,
+    logoutAccount,
     loginParent,
     logoutParent,
     completeTask,
@@ -532,9 +538,38 @@ export function KioskApp({ mode }: KioskAppProps) {
     return (
       <SetupScreen
         working={working}
+        username={data.session.username}
+        errorMessage={setupError ?? (toast?.kind === "hata" ? toast.message : null)}
         onSubmit={async (payload) => {
-          await setupRequest(payload);
-          await loadDashboard();
+          clearToast();
+          setSetupError(null);
+
+          try {
+            await setupRequest(payload);
+            await loadDashboard();
+          } catch (error) {
+            setSetupError(error instanceof Error ? error.message : "Kurulum yapilamadi.");
+          }
+        }}
+        onLogout={async () => {
+          clearToast();
+          setSetupError(null);
+          await logoutAccount();
+        }}
+      />
+    );
+  }
+
+  if (data?.authRequired) {
+    return (
+      <AccountScreen
+        working={working}
+        errorMessage={toast?.kind === "hata" ? toast.message : null}
+        onLogin={async (payload) => {
+          await loginAccount(payload);
+        }}
+        onRegister={async (payload) => {
+          await registerAccount(payload);
         }}
       />
     );
@@ -642,10 +677,10 @@ export function KioskApp({ mode }: KioskAppProps) {
       }
     },
     {
-      icon: data.session.authenticated ? PanelRightOpen : Lock,
-      label: data.session.authenticated ? "Yonetim" : "Ebeveyn",
+      icon: data.session.parentAuthenticated ? PanelRightOpen : Lock,
+      label: data.session.parentAuthenticated ? "Yonetim" : "Ebeveyn",
       onClick: () => {
-        if (data.session.authenticated) {
+        if (data.session.parentAuthenticated) {
           openAdmin();
           return;
         }
@@ -653,6 +688,16 @@ export function KioskApp({ mode }: KioskAppProps) {
         openLogin();
       },
       emphasis: true
+    },
+    {
+      icon: LogOut,
+      label: "Cikis",
+      onClick: async () => {
+        setScreen("profiles");
+        closeAdmin();
+        closeLogin();
+        await logoutAccount();
+      }
     }
   ];
 

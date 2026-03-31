@@ -1,12 +1,16 @@
 import "server-only";
 
 import bcrypt from "bcryptjs";
-import { getParentSession } from "@/lib/auth";
+import { randomUUID } from "node:crypto";
+import type { AppSession } from "@/lib/auth";
+import { getAppSession } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
 import {
   adjustLocalPoints,
   bootstrapLocalApp,
   getLocalDashboardSnapshot,
+  loginLocalAccount,
+  registerLocalAccount,
   requestLocalReward,
   resetLocalProgress,
   resolveLocalReward,
@@ -24,9 +28,9 @@ import {
   getTurkishDateLabel,
   getWeekDays
 } from "@/lib/schedule";
-import { ensureStarterSeeded } from "@/lib/starter-seed";
 import { createAdminClient } from "@/lib/supabase";
 import type {
+  AccountAuthPayload,
   DashboardPayload,
   FamilyRecord,
   RewardFormPayload,
@@ -38,8 +42,28 @@ import type {
   UserRecord
 } from "@/lib/types";
 
+const USERNAME_PATTERN = /^[a-z0-9._-]{3,24}$/;
+const ACCOUNT_USER_PREFIX = "__account__:";
+const ACCOUNT_USER_COLOR = "#0F172A";
+const ACCOUNT_PLACEHOLDER_FAMILY_NAME = "Kurulum bekliyor";
+
 interface InternalFamilyRecord extends FamilyRecord {
   parent_pin_hash: string;
+}
+
+interface AccountUserRecord {
+  id: string;
+  family_id: string;
+  name: string;
+  avatar: string;
+}
+
+interface AuthAccount {
+  accountId: string;
+  username: string;
+  familyId: string | null;
+  accessToken: string;
+  refreshToken: string;
 }
 
 function fail(message: string, error: unknown): never {
@@ -47,47 +71,67 @@ function fail(message: string, error: unknown): never {
   throw new Error(`${message}: ${detail}`);
 }
 
-function toPublicFamilyRecord(family: InternalFamilyRecord | null): FamilyRecord | null {
-  if (!family) {
-    return null;
+function normalizeUsername(username: string) {
+  return username.trim().toLowerCase();
+}
+
+function validateAccountPayload(payload: AccountAuthPayload) {
+  const username = normalizeUsername(payload.username);
+  const password = payload.password;
+
+  if (!USERNAME_PATTERN.test(username)) {
+    throw new Error(
+      "Kullanici adi 3-24 karakter olmali ve sadece harf, rakam, nokta, tire veya alt cizgi icermeli."
+    );
+  }
+
+  if (password.length < 6) {
+    throw new Error("Sifre en az 6 karakter olmali.");
   }
 
   return {
-    id: family.id,
-    name: family.name,
-    theme: family.theme,
-    audio_enabled: family.audio_enabled,
-    child_sleep_time: family.child_sleep_time,
-    parent_sleep_time: family.parent_sleep_time,
-    day_reset_time: family.day_reset_time,
-    created_at: family.created_at
+    username,
+    password
   };
 }
 
-async function getFamilyInternal() {
-  const supabase = createAdminClient();
-  const { data, error } = await supabase
-    .from("families")
-    .select("*")
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    fail("Aile bilgisi alinamadi", error);
-  }
-
-  return data as InternalFamilyRecord | null;
+function getAccountMarkerName(username: string) {
+  return `${ACCOUNT_USER_PREFIX}${username}`;
 }
 
-function getEmptyDashboardSnapshot(): DashboardPayload {
+function isAccountMarkerName(name: string) {
+  return name.startsWith(ACCOUNT_USER_PREFIX);
+}
+
+function isAccountUserRecord(user: Pick<UserRecord, "name"> | Pick<AccountUserRecord, "name">) {
+  return isAccountMarkerName(user.name);
+}
+
+function toAuthAccount(user: AccountUserRecord, username: string): AuthAccount {
   return {
-    setupRequired: true,
+    accountId: user.id,
+    username: normalizeUsername(username),
+    familyId: user.family_id,
+    accessToken: "",
+    refreshToken: ""
+  };
+}
+
+function getDashboardSession(session: AppSession | null): DashboardPayload["session"] {
+  return {
+    accountAuthenticated: Boolean(session),
+    username: session?.username ?? null,
+    parentAuthenticated: Boolean(session?.parentAuthenticated && session?.familyId),
+    role: session?.parentAuthenticated ? "ebeveyn" : null
+  };
+}
+
+function getEmptyDashboardSnapshot(session: AppSession | null): DashboardPayload {
+  return {
+    authRequired: !session,
+    setupRequired: Boolean(session),
     family: null,
-    session: {
-      authenticated: false,
-      role: null
-    },
+    session: getDashboardSession(session),
     users: [],
     tasks: [],
     completions: [],
@@ -107,96 +151,290 @@ function getEmptyDashboardSnapshot(): DashboardPayload {
   };
 }
 
-export async function bootstrapApp({
-  familyName,
-  parentName,
-  pin,
-  includeSampleData
-}: SetupPayload) {
-  if (!isSupabaseConfigured()) {
-    return bootstrapLocalApp({ familyName, parentName, pin, includeSampleData });
+function toPublicFamilyRecord(family: InternalFamilyRecord | null): FamilyRecord | null {
+  if (!family) {
+    return null;
   }
 
-  const currentFamily = await getFamilyInternal();
+  return {
+    id: family.id,
+    name: family.name,
+    theme: family.theme,
+    audio_enabled: family.audio_enabled,
+    child_sleep_time: family.child_sleep_time,
+    parent_sleep_time: family.parent_sleep_time,
+    day_reset_time: family.day_reset_time,
+    created_at: family.created_at
+  };
+}
 
-  if (currentFamily) {
+async function getFamilyInternal(familyId: string) {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("families")
+    .select("*")
+    .eq("id", familyId)
+    .maybeSingle();
+
+  if (error) {
+    fail("Aile bilgisi alinamadi", error);
+  }
+
+  return data as InternalFamilyRecord | null;
+}
+
+async function getAccountUserByUsername(username: string) {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("users")
+    .select("id, family_id, name, avatar")
+    .eq("name", getAccountMarkerName(username))
+    .maybeSingle();
+
+  if (error) {
+    fail("Hesap bilgisi alinamadi", error);
+  }
+
+  return (data as AccountUserRecord | null) ?? null;
+}
+
+async function createPlaceholderFamily() {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("families")
+    .insert({
+      name: ACCOUNT_PLACEHOLDER_FAMILY_NAME,
+      parent_pin_hash: await bcrypt.hash(randomUUID(), 10)
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    fail("Aile kaydi olusturulamadi", error);
+  }
+
+  return data.id as string;
+}
+
+async function findClaimableFamilyId() {
+  const supabase = createAdminClient();
+  const [familiesResult, usersResult] = await Promise.all([
+    supabase.from("families").select("id").order("created_at"),
+    supabase.from("users").select("family_id, name").eq("role", "ebeveyn")
+  ]);
+
+  if (familiesResult.error) {
+    fail("Aile listesi alinamadi", familiesResult.error);
+  }
+
+  if (usersResult.error) {
+    fail("Hesap sahipligi kontrol edilemedi", usersResult.error);
+  }
+
+  const linkedFamilyIds = new Set(
+    (usersResult.data ?? [])
+      .filter((user) => typeof user.family_id === "string" && isAccountMarkerName(user.name))
+      .map((user) => user.family_id as string)
+  );
+
+  const unclaimedFamilyIds = (familiesResult.data ?? [])
+    .map((family) => family.id as string)
+    .filter((familyId) => !linkedFamilyIds.has(familyId));
+
+  return unclaimedFamilyIds.length === 1 ? unclaimedFamilyIds[0] : null;
+}
+
+async function ensureFamilyRecordExists(
+  table: "users" | "tasks" | "rewards" | "redemptions",
+  id: string,
+  familyId: string
+) {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from(table)
+    .select("id")
+    .eq("id", id)
+    .eq("family_id", familyId)
+    .maybeSingle();
+
+  if (error) {
+    fail("Aile kaydi dogrulanamadi", error);
+  }
+
+  if (!data) {
+    throw new Error("Bu kayit bu hesaba ait degil.");
+  }
+}
+
+export async function registerAccount(payload: AccountAuthPayload) {
+  const { username, password } = validateAccountPayload(payload);
+
+  if (!isSupabaseConfigured()) {
+    return registerLocalAccount(username, password);
+  }
+
+  if (await getAccountUserByUsername(username)) {
+    throw new Error("Bu kullanici adi zaten kullaniliyor.");
+  }
+
+  const familyId = (await findClaimableFamilyId()) ?? (await createPlaceholderFamily());
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("users")
+    .insert({
+      family_id: familyId,
+      name: getAccountMarkerName(username),
+      role: "ebeveyn",
+      avatar: await bcrypt.hash(password, 10),
+      color: ACCOUNT_USER_COLOR
+    })
+    .select("id, family_id, name, avatar")
+    .single();
+
+  if (error) {
+    fail("Hesap olusturulamadi", error);
+  }
+
+  return toAuthAccount(data as AccountUserRecord, username);
+}
+
+export async function loginAccount(payload: AccountAuthPayload) {
+  const { username, password } = validateAccountPayload(payload);
+
+  if (!isSupabaseConfigured()) {
+    return loginLocalAccount(username, password);
+  }
+
+  const accountUser = await getAccountUserByUsername(username);
+
+  if (!accountUser || !(await bcrypt.compare(password, accountUser.avatar))) {
+    throw new Error("Kullanici adi veya sifre hatali.");
+  }
+
+  return toAuthAccount(accountUser, username);
+}
+
+async function hasVisibleUsers(familyId: string) {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase.from("users").select("name").eq("family_id", familyId);
+
+  if (error) {
+    fail("Kurulum durumu kontrol edilemedi", error);
+  }
+
+  return (data ?? []).some((user) => !isAccountMarkerName(user.name));
+}
+
+function buildSetupRequiredSnapshot(
+  session: AppSession,
+  family: FamilyRecord | null
+): DashboardPayload {
+  return {
+    authRequired: false,
+    setupRequired: true,
+    family,
+    session: getDashboardSession(session),
+    users: [],
+    tasks: [],
+    completions: [],
+    rewards: [],
+    redemptions: [],
+    pointEvents: [],
+    today: {
+      dateKey: getDateKey(new Date(), family),
+      label: getTurkishDateLabel(new Date(), family),
+      weekday: new Intl.DateTimeFormat("tr-TR", {
+        timeZone: "Europe/Istanbul",
+        weekday: "long"
+      }).format(new Date()),
+      activeTimeBlock: getActiveTimeBlock(new Date(), family)
+    },
+    week: getWeekDays(new Date(), family)
+  };
+}
+
+export async function bootstrapApp(account: AuthAccount, payload: SetupPayload) {
+  if (!isSupabaseConfigured()) {
+    return bootstrapLocalApp(account.accountId, payload);
+  }
+
+  if (!account.familyId) {
+    throw new Error("Aile kaydi bulunamadi.");
+  }
+
+  if (await hasVisibleUsers(account.familyId)) {
     throw new Error("Kurulum zaten tamamlandi.");
   }
 
   const supabase = createAdminClient();
-  const parentPinHash = await bcrypt.hash(pin, 10);
+  const parentPinHash = await bcrypt.hash(payload.pin, 10);
 
-  const { data: family, error: familyError } = await supabase
+  const { error: familyError } = await supabase
     .from("families")
-    .insert({
-      name: familyName,
-      parent_pin_hash: parentPinHash,
-      child_sleep_time: "22:00",
-      parent_sleep_time: "00:00",
-      day_reset_time: "00:00"
+    .update({
+      name: payload.familyName,
+      parent_pin_hash: parentPinHash
     })
-    .select("*")
-    .single();
+    .eq("id", account.familyId);
 
   if (familyError) {
     fail("Aile olusturulamadi", familyError);
   }
 
-  const usersSeed: Array<Record<string, unknown>> = [
-    {
-      family_id: family.id,
-      name: parentName,
-      role: "ebeveyn",
-      avatar: "\u{1F468}",
-      color: "#2DD4BF"
-    }
-  ];
-
-  if (includeSampleData) {
-    usersSeed.push(
-      {
-        family_id: family.id,
-        name: "Esra",
-        role: "ebeveyn",
-        avatar: "\u{1F469}",
-        color: "#FB7185"
-      },
-      {
-        family_id: family.id,
-        name: "Poyraz",
-        role: "\u00e7ocuk",
-        avatar: "\u{1F981}",
-        color: "#60A5FA",
-        birthdate: "2016-05-14"
-      },
-      {
-        family_id: family.id,
-        name: "Aden",
-        role: "\u00e7ocuk",
-        avatar: "\u{1F984}",
-        color: "#22C55E",
-        birthdate: "2019-09-02"
-      }
-    );
-  }
-
   const { data: insertedUsers, error: usersError } = await supabase
     .from("users")
-    .insert(usersSeed)
+    .insert([
+      {
+        family_id: account.familyId,
+        name: payload.parentName,
+        role: "ebeveyn",
+        avatar: "\u{1F468}",
+        color: "#2DD4BF"
+      },
+      ...(payload.includeSampleData
+        ? [
+            {
+              family_id: account.familyId,
+              name: "Esra",
+              role: "ebeveyn",
+              avatar: "\u{1F469}",
+              color: "#FB7185"
+            },
+            {
+              family_id: account.familyId,
+              name: "Poyraz",
+              role: "\u00e7ocuk",
+              avatar: "\u{1F981}",
+              color: "#60A5FA",
+              birthdate: "2016-05-14"
+            },
+            {
+              family_id: account.familyId,
+              name: "Aden",
+              role: "\u00e7ocuk",
+              avatar: "\u{1F984}",
+              color: "#22C55E",
+              birthdate: "2019-09-02"
+            }
+          ]
+        : [])
+    ])
     .select("*");
 
   if (usersError) {
     fail("Kullanicilar olusturulamadi", usersError);
   }
 
-  if (includeSampleData) {
+  if (payload.includeSampleData) {
     const users = (insertedUsers ?? []) as UserRecord[];
-    const childIds = users.filter((user) => user.role === "\u00e7ocuk").map((user) => user.id);
+    const childIds = users
+      .filter((user) => user.role === "\u00e7ocuk")
+      .map((user) => user.id);
     const assignedUserIds = childIds.length > 0 ? childIds : users.map((user) => user.id);
 
     const { error: tasksError } = await supabase.from("tasks").insert(
       SAMPLE_TASK_TEMPLATES.map((task) => ({
-        family_id: family.id,
+        family_id: account.familyId,
         title: task.title,
         icon: task.icon,
         points: task.points,
@@ -214,13 +452,13 @@ export async function bootstrapApp({
 
     const { error: rewardsError } = await supabase.from("rewards").insert([
       {
-        family_id: family.id,
+        family_id: account.familyId,
         title: "Film gecesi secimi",
         points_required: 120,
         approval_required: false
       },
       {
-        family_id: family.id,
+        family_id: account.familyId,
         title: "Hafta sonu dondurma",
         points_required: 180,
         approval_required: true
@@ -232,27 +470,38 @@ export async function bootstrapApp({
     }
   }
 
-  return getDashboardSnapshot();
+  return {
+    familyId: account.familyId
+  };
 }
 
-export async function getDashboardSnapshot(): Promise<DashboardPayload> {
+export async function getDashboardSnapshot(
+  sessionOverride: AppSession | null = null
+): Promise<DashboardPayload> {
+  const session = sessionOverride || (await getAppSession());
+
   if (!isSupabaseConfigured()) {
-    return getLocalDashboardSnapshot();
+    return getLocalDashboardSnapshot(session);
   }
 
-  await ensureStarterSeeded();
+  if (!session) {
+    return getEmptyDashboardSnapshot(null);
+  }
 
-  const familyInternal = await getFamilyInternal();
-  const session = await getParentSession();
+  if (!session.familyId) {
+    return getEmptyDashboardSnapshot(session);
+  }
+
+  const familyInternal = await getFamilyInternal(session.familyId);
 
   if (!familyInternal) {
-    return getEmptyDashboardSnapshot();
+    return getEmptyDashboardSnapshot(session);
   }
 
   const family = toPublicFamilyRecord(familyInternal);
 
   if (!family) {
-    return getEmptyDashboardSnapshot();
+    return getEmptyDashboardSnapshot(session);
   }
 
   const supabase = createAdminClient();
@@ -280,9 +529,7 @@ export async function getDashboardSnapshot(): Promise<DashboardPayload> {
       .from("redemptions")
       .select("*")
       .eq("family_id", family.id)
-      .order("requested_at", {
-        ascending: false
-      }),
+      .order("requested_at", { ascending: false }),
     supabase
       .from("point_events")
       .select("*")
@@ -310,14 +557,20 @@ export async function getDashboardSnapshot(): Promise<DashboardPayload> {
     fail("Puan gecmisi alinamadi", eventsResult.error);
   }
 
+  const visibleUsers = ((usersResult.data ?? []) as UserRecord[]).filter(
+    (user) => !isAccountUserRecord(user)
+  );
+
+  if (visibleUsers.length === 0) {
+    return buildSetupRequiredSnapshot(session, null);
+  }
+
   return {
+    authRequired: false,
     setupRequired: false,
     family,
-    session: {
-      authenticated: Boolean(session?.familyId === family.id),
-      role: session?.role ?? null
-    },
-    users: (usersResult.data ?? []) as UserRecord[],
+    session: getDashboardSession(session),
+    users: visibleUsers,
     tasks: (tasksResult.data ?? []) as TaskRecord[],
     completions: completionsResult.data ?? [],
     rewards: (rewardsResult.data ?? []) as RewardRecord[],
@@ -336,31 +589,24 @@ export async function getDashboardSnapshot(): Promise<DashboardPayload> {
   };
 }
 
-export async function verifyParentPin(pin: string) {
+export async function verifyParentPin(familyId: string, pin: string) {
   if (!isSupabaseConfigured()) {
-    return verifyLocalParentPin(pin);
-  }
-
-  await ensureStarterSeeded();
-
-  const family = await getFamilyInternal();
-
-  if (!family) {
-    throw new Error("Once kurulum yapilmali.");
+    return verifyLocalParentPin(familyId, pin);
   }
 
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("families")
-    .select("id, parent_pin_hash")
-    .eq("id", family.id)
+    .select("*")
+    .eq("id", familyId)
     .single();
 
   if (error) {
     fail("PIN dogrulanamadi", error);
   }
 
-  const matched = await bcrypt.compare(pin, data.parent_pin_hash as string);
+  const family = data as InternalFamilyRecord;
+  const matched = await bcrypt.compare(pin, family.parent_pin_hash);
 
   if (!matched) {
     throw new Error("PIN hatali.");
@@ -380,6 +626,10 @@ export async function saveUser(familyId: string, payload: UserFormPayload) {
     return saveLocalUser(familyId, payload);
   }
 
+  if (isAccountMarkerName(payload.name.trim())) {
+    throw new Error("Bu isim kullanilamaz.");
+  }
+
   const supabase = createAdminClient();
   const base = {
     family_id: familyId,
@@ -391,14 +641,40 @@ export async function saveUser(familyId: string, payload: UserFormPayload) {
   };
 
   if (payload.id) {
-    const { error } = await supabase.from("users").update(base).eq("id", payload.id);
+    const { data: existing, error: existingError } = await supabase
+      .from("users")
+      .select("id, name")
+      .eq("id", payload.id)
+      .eq("family_id", familyId)
+      .maybeSingle();
+
+    if (existingError) {
+      fail("Kullanici guncellenemedi", existingError);
+    }
+
+    if (!existing) {
+      throw new Error("Kullanici bulunamadi.");
+    }
+
+    if (isAccountMarkerName(existing.name)) {
+      throw new Error("Bu profil duzenlenemez.");
+    }
+
+    const { error } = await supabase
+      .from("users")
+      .update(base)
+      .eq("id", payload.id)
+      .eq("family_id", familyId);
+
     if (error) {
       fail("Kullanici guncellenemedi", error);
     }
+
     return;
   }
 
   const { error } = await supabase.from("users").insert(base);
+
   if (error) {
     fail("Kullanici olusturulamadi", error);
   }
@@ -423,14 +699,27 @@ export async function saveTask(familyId: string, payload: TaskFormPayload) {
   };
 
   if (payload.id) {
-    const { error } = await supabase.from("tasks").update(base).eq("id", payload.id);
+    const { data, error } = await supabase
+      .from("tasks")
+      .update(base)
+      .eq("id", payload.id)
+      .eq("family_id", familyId)
+      .select("id")
+      .maybeSingle();
+
     if (error) {
       fail("Gorev guncellenemedi", error);
     }
+
+    if (!data) {
+      throw new Error("Gorev bulunamadi.");
+    }
+
     return;
   }
 
   const { error } = await supabase.from("tasks").insert(base);
+
   if (error) {
     fail("Gorev olusturulamadi", error);
   }
@@ -450,25 +739,70 @@ export async function saveReward(familyId: string, payload: RewardFormPayload) {
   };
 
   if (payload.id) {
-    const { error } = await supabase.from("rewards").update(base).eq("id", payload.id);
+    const { data, error } = await supabase
+      .from("rewards")
+      .update(base)
+      .eq("id", payload.id)
+      .eq("family_id", familyId)
+      .select("id")
+      .maybeSingle();
+
     if (error) {
       fail("Odul guncellenemedi", error);
     }
+
+    if (!data) {
+      throw new Error("Odul bulunamadi.");
+    }
+
     return;
   }
 
   const { error } = await supabase.from("rewards").insert(base);
+
   if (error) {
     fail("Odul olusturulamadi", error);
   }
 }
 
-export async function toggleTaskCompletion(taskId: string, userId: string, dateKey: string) {
+export async function toggleTaskCompletion(
+  familyId: string,
+  taskId: string,
+  userId: string,
+  dateKey: string
+) {
   if (!isSupabaseConfigured()) {
-    return toggleLocalTaskCompletion(taskId, userId, dateKey);
+    return toggleLocalTaskCompletion(familyId, taskId, userId, dateKey);
   }
 
   const supabase = createAdminClient();
+  const [{ data: task, error: taskError }, { data: user, error: userError }] = await Promise.all([
+    supabase
+      .from("tasks")
+      .select("id")
+      .eq("id", taskId)
+      .eq("family_id", familyId)
+      .maybeSingle(),
+    supabase
+      .from("users")
+      .select("id, name")
+      .eq("id", userId)
+      .eq("family_id", familyId)
+      .maybeSingle()
+  ]);
+
+  if (taskError) {
+    fail("Gorev dogrulanamadi", taskError);
+  }
+
+  if (userError) {
+    fail("Kullanici dogrulanamadi", userError);
+  }
+
+  if (!task || !user || isAccountMarkerName(user.name)) {
+    throw new Error("Bu islem bu hesaba ait olmayan bir kayit iceriyor.");
+  }
+
   const { data, error } = await supabase.rpc("toggle_task_completion", {
     p_user_id: userId,
     p_task_id: taskId,
@@ -482,12 +816,40 @@ export async function toggleTaskCompletion(taskId: string, userId: string, dateK
   return data?.[0] ?? null;
 }
 
-export async function requestReward(userId: string, rewardId: string) {
+export async function requestReward(familyId: string, userId: string, rewardId: string) {
   if (!isSupabaseConfigured()) {
-    return requestLocalReward(userId, rewardId);
+    return requestLocalReward(familyId, userId, rewardId);
   }
 
   const supabase = createAdminClient();
+  const [{ data: user, error: userError }, { data: reward, error: rewardError }] =
+    await Promise.all([
+      supabase
+        .from("users")
+        .select("id, name")
+        .eq("id", userId)
+        .eq("family_id", familyId)
+        .maybeSingle(),
+      supabase
+        .from("rewards")
+        .select("id")
+        .eq("id", rewardId)
+        .eq("family_id", familyId)
+        .maybeSingle()
+    ]);
+
+  if (userError) {
+    fail("Kullanici dogrulanamadi", userError);
+  }
+
+  if (rewardError) {
+    fail("Odul dogrulanamadi", rewardError);
+  }
+
+  if (!user || !reward || isAccountMarkerName(user.name)) {
+    throw new Error("Bu odul talebi bu hesaba ait degil.");
+  }
+
   const { data, error } = await supabase.rpc("request_reward_redemption", {
     p_user_id: userId,
     p_reward_id: rewardId
@@ -500,10 +862,16 @@ export async function requestReward(userId: string, rewardId: string) {
   return data?.[0] ?? null;
 }
 
-export async function resolveReward(redemptionId: string, status: "onaylandi" | "reddedildi") {
+export async function resolveReward(
+  familyId: string,
+  redemptionId: string,
+  status: "onaylandi" | "reddedildi"
+) {
   if (!isSupabaseConfigured()) {
-    return resolveLocalReward(redemptionId, status);
+    return resolveLocalReward(familyId, redemptionId, status);
   }
+
+  await ensureFamilyRecordExists("redemptions", redemptionId, familyId);
 
   const supabase = createAdminClient();
   const { data, error } = await supabase.rpc("resolve_redemption", {
@@ -518,12 +886,27 @@ export async function resolveReward(redemptionId: string, status: "onaylandi" | 
   return data?.[0] ?? null;
 }
 
-export async function adjustPoints(userId: string, delta: number, note: string) {
+export async function adjustPoints(familyId: string, userId: string, delta: number, note: string) {
   if (!isSupabaseConfigured()) {
-    return adjustLocalPoints(userId, delta, note);
+    return adjustLocalPoints(familyId, userId, delta, note);
   }
 
   const supabase = createAdminClient();
+  const { data: user, error: userError } = await supabase
+    .from("users")
+    .select("id, name")
+    .eq("id", userId)
+    .eq("family_id", familyId)
+    .maybeSingle();
+
+  if (userError) {
+    fail("Kullanici dogrulanamadi", userError);
+  }
+
+  if (!user || isAccountMarkerName(user.name)) {
+    throw new Error("Bu kullanici bulunamadi.");
+  }
+
   const { data, error } = await supabase.rpc("adjust_user_points", {
     p_user_id: userId,
     p_delta: delta,

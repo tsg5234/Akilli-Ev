@@ -6,19 +6,28 @@ import { HeartHandshake, KeyRound, Sparkles, Users } from "lucide-react";
 
 interface SetupScreenProps {
   working: boolean;
+  username?: string | null;
+  errorMessage?: string | null;
   onSubmit: (payload: {
     familyName: string;
     parentName: string;
     pin: string;
     includeSampleData: boolean;
   }) => Promise<void>;
+  onLogout?: () => Promise<void>;
 }
 
-export function SetupScreen({ working, onSubmit }: SetupScreenProps) {
-  const [familyName, setFamilyName] = useState("Güler Ailesi");
-  const [parentName, setParentName] = useState("Tanju");
+export function SetupScreen({
+  working,
+  username,
+  errorMessage,
+  onSubmit,
+  onLogout
+}: SetupScreenProps) {
+  const [familyName, setFamilyName] = useState("");
+  const [parentName, setParentName] = useState("");
   const [pin, setPin] = useState("");
-  const [includeSampleData, setIncludeSampleData] = useState(true);
+  const [includeSampleData, setIncludeSampleData] = useState(false);
 
   return (
     <div className="app-surface flex min-h-screen items-center justify-center px-4 py-10">
@@ -36,14 +45,15 @@ export function SetupScreen({ working, onSubmit }: SetupScreenProps) {
             <div className="space-y-4">
               <span className="inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-sm font-semibold text-white/90">
                 <Sparkles className="h-4 w-4" />
-                Tablet modu icin hazir
+                Hesap sonrasi aile kurulumu
               </span>
               <div className="space-y-3">
                 <h1 className="max-w-xl text-4xl font-black leading-tight tracking-[-0.04em] lg:text-6xl">
-                  Aile gorev panosunu dakikalar icinde kurun.
+                  Aile gorev panosunu kendi hesabin icin kur.
                 </h1>
                 <p className="max-w-lg text-lg text-white/76">
-                  Cocuklar profilini secsin, gorevler gorunsun, puanlar aninda eklensin.
+                  Bu adimdan sonra kioskta sadece senin ailene ait profiller ve gorevler
+                  gorunur.
                 </p>
               </div>
             </div>
@@ -54,7 +64,10 @@ export function SetupScreen({ working, onSubmit }: SetupScreenProps) {
                 { icon: HeartHandshake, title: "Odul sistemi", text: "Puanla talep ve onay" },
                 { icon: KeyRound, title: "PIN korumasi", text: "Yonetim ebeveyn kontrolunde" }
               ].map((item) => (
-                <div key={item.title} className="rounded-[1.9rem] border border-white/10 bg-white/12 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <div
+                  key={item.title}
+                  className="rounded-[1.9rem] border border-white/10 bg-white/12 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]"
+                >
                   <item.icon className="mb-4 h-6 w-6 text-amber-300" />
                   <h2 className="text-lg font-semibold">{item.title}</h2>
                   <p className="mt-2 text-sm text-white/72">{item.text}</p>
@@ -64,7 +77,7 @@ export function SetupScreen({ working, onSubmit }: SetupScreenProps) {
           </div>
         </div>
 
-          <form
+        <form
           className="space-y-5 rounded-[2.2rem] bg-white/82 p-6 text-slate-900 shadow-panel"
           onSubmit={async (event) => {
             event.preventDefault();
@@ -73,12 +86,19 @@ export function SetupScreen({ working, onSubmit }: SetupScreenProps) {
         >
           <div className="space-y-1">
             <p className="text-sm font-semibold uppercase tracking-[0.24em] text-teal-700">
-              Ilk kurulum
+              Aile kurulumu
             </p>
-            <h2 className="text-3xl font-black tracking-[-0.03em]">Aile bilgilerini girin</h2>
+            <h2 className="text-3xl font-black tracking-[-0.03em]">
+              Bu hesap icin aileyi hazirlayin
+            </h2>
             <p className="text-sm text-slate-600">
-              Bu bilgilerle kiosk deneyimi ve yonetim paneli hazir hale gelir.
+              Giristen sonra sadece bu hesaba ait aile, profil ve kiosk akisi acilir.
             </p>
+            {username ? (
+              <div className="inline-flex rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">
+                Hesap: {username}
+              </div>
+            ) : null}
           </div>
 
           <div className="space-y-4">
@@ -117,7 +137,7 @@ export function SetupScreen({ working, onSubmit }: SetupScreenProps) {
               <div>
                 <div className="font-semibold text-slate-900">Ornek veriler olustur</div>
                 <div className="text-sm text-slate-600">
-                  Esra, Poyraz ve Aden otomatik eklensin.
+                  Dilersen ebeveyn, cocuk ve gorevleri otomatik baslatalim.
                 </div>
               </div>
               <input
@@ -129,6 +149,12 @@ export function SetupScreen({ working, onSubmit }: SetupScreenProps) {
             </label>
           </div>
 
+          {errorMessage ? (
+            <div className="rounded-[1.5rem] bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+              {errorMessage}
+            </div>
+          ) : null}
+
           <button
             type="submit"
             disabled={working}
@@ -136,6 +162,16 @@ export function SetupScreen({ working, onSubmit }: SetupScreenProps) {
           >
             {working ? "Kuruluyor..." : "Aile panosunu baslat"}
           </button>
+
+          {onLogout ? (
+            <button
+              type="button"
+              onClick={() => void onLogout()}
+              className="w-full rounded-[1.6rem] bg-slate-100 px-5 py-4 text-sm font-black text-slate-700 transition hover:bg-slate-200"
+            >
+              Bu hesaptan cik
+            </button>
+          ) : null}
         </form>
       </motion.div>
     </div>

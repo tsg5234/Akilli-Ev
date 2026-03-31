@@ -2,7 +2,7 @@ import "server-only";
 
 import { compareSync, hashSync } from "bcryptjs";
 import { randomUUID } from "node:crypto";
-import { getParentSession } from "@/lib/auth";
+import type { AppSession } from "@/lib/auth";
 import { buildSampleTasks } from "@/lib/sample-data";
 import {
   getActiveTimeBlock,
@@ -25,18 +25,31 @@ import type {
   UserRecord
 } from "@/lib/types";
 
+interface LocalAccountRecord {
+  id: string;
+  username: string;
+  password_hash: string;
+  family_id: string | null;
+  created_at: string;
+}
+
 interface LocalFamilyRecord extends FamilyRecord {
   parent_pin_hash: string;
 }
 
-interface LocalState {
-  family: LocalFamilyRecord | null;
+interface LocalFamilyState {
+  family: LocalFamilyRecord;
   users: UserRecord[];
   tasks: TaskRecord[];
   completions: CompletionRecord[];
   rewards: RewardRecord[];
   redemptions: RedemptionRecord[];
   pointEvents: PointEventRecord[];
+}
+
+interface LocalState {
+  accounts: LocalAccountRecord[];
+  families: Record<string, LocalFamilyState>;
 }
 
 declare global {
@@ -51,206 +64,213 @@ function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
-function createDemoState(): LocalState {
-  const createdAt = nowIso();
-  const familyId = randomUUID();
-  const fatherId = randomUUID();
-  const motherId = randomUUID();
-  const childOneId = randomUUID();
-  const childTwoId = randomUUID();
-  const allUserIds = [fatherId, motherId, childOneId, childTwoId];
-
+function getDashboardSession(session: AppSession | null): DashboardPayload["session"] {
   return {
-    family: {
-      id: familyId,
-      name: "Güler Ailesi",
-      theme: "acik",
-      audio_enabled: true,
-      child_sleep_time: "22:00",
-      parent_sleep_time: "00:00",
-      day_reset_time: "00:00",
-      created_at: createdAt,
-      parent_pin_hash: hashSync("1234", 10)
-    },
-    users: [
-      {
-        id: fatherId,
-        family_id: familyId,
-        name: "Tanju",
-        role: "ebeveyn",
-        avatar: "👨",
-        color: "#2DD4BF",
-        birthdate: null,
-        points: 0,
-        created_at: createdAt
-      },
-      {
-        id: motherId,
-        family_id: familyId,
-        name: "Esra",
-        role: "ebeveyn",
-        avatar: "👩",
-        color: "#FB7185",
-        birthdate: null,
-        points: 0,
-        created_at: createdAt
-      },
-      {
-        id: childOneId,
-        family_id: familyId,
-        name: "Poyraz",
-        role: "çocuk",
-        avatar: "🦁",
-        color: "#60A5FA",
-        birthdate: "2016-05-14",
-        points: 0,
-        created_at: createdAt
-      },
-      {
-        id: childTwoId,
-        family_id: familyId,
-        name: "Aden",
-        role: "çocuk",
-        avatar: "🦄",
-        color: "#22C55E",
-        birthdate: "2019-09-02",
-        points: 0,
-        created_at: createdAt
-      }
-    ],
-    tasks: buildSampleTasks(familyId, allUserIds, createdAt),
-    completions: [],
-    rewards: [
-      {
-        id: randomUUID(),
-        family_id: familyId,
-        title: "Film gecesi seçimi",
-        points_required: 120,
-        approval_required: false,
-        created_at: createdAt
-      },
-      {
-        id: randomUUID(),
-        family_id: familyId,
-        title: "Hafta sonu dondurma",
-        points_required: 180,
-        approval_required: true,
-        created_at: createdAt
-      }
-    ],
-    redemptions: [],
-    pointEvents: []
+    accountAuthenticated: Boolean(session),
+    username: session?.username ?? null,
+    parentAuthenticated: Boolean(session?.parentAuthenticated && session?.familyId),
+    role: session?.parentAuthenticated ? "ebeveyn" : null
   };
 }
 
-function getState() {
-  globalThis.evProgramLocalState ??= createDemoState();
-  return globalThis.evProgramLocalState;
-}
-
-function toSnapshot(state: LocalState, authenticated: boolean): DashboardPayload {
+function getEmptyDashboardSnapshot(session: AppSession | null): DashboardPayload {
   return {
-    setupRequired: false,
-    family: state.family
-      ? {
-          id: state.family.id,
-          name: state.family.name,
-          theme: state.family.theme,
-          audio_enabled: state.family.audio_enabled,
-          child_sleep_time: state.family.child_sleep_time,
-          parent_sleep_time: state.family.parent_sleep_time,
-          day_reset_time: state.family.day_reset_time,
-          created_at: state.family.created_at
-        }
-      : null,
-    session: {
-      authenticated,
-      role: authenticated ? "ebeveyn" : null
-    },
-    users: clone(state.users),
-    tasks: clone(state.tasks),
-    completions: clone(state.completions),
-    rewards: clone(state.rewards),
-    redemptions: clone(state.redemptions),
-    pointEvents: clone(
-      [...state.pointEvents].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 60)
-    ),
+    authRequired: !session,
+    setupRequired: Boolean(session),
+    family: null,
+    session: getDashboardSession(session),
+    users: [],
+    tasks: [],
+    completions: [],
+    rewards: [],
+    redemptions: [],
+    pointEvents: [],
     today: {
-      dateKey: getDateKey(new Date(), state.family),
-      label: getTurkishDateLabel(new Date(), state.family),
+      dateKey: getDateKey(),
+      label: getTurkishDateLabel(),
       weekday: new Intl.DateTimeFormat("tr-TR", {
         timeZone: "Europe/Istanbul",
         weekday: "long"
       }).format(new Date()),
-      activeTimeBlock: getActiveTimeBlock(new Date(), state.family)
+      activeTimeBlock: getActiveTimeBlock()
     },
-    week: getWeekDays(new Date(), state.family)
+    week: getWeekDays()
   };
 }
 
-function requireFamily() {
-  const family = getState().family;
+function getState() {
+  globalThis.evProgramLocalState ??= {
+    accounts: [],
+    families: {}
+  };
 
-  if (!family) {
-    throw new Error("Aile kaydı bulunamadı.");
+  return globalThis.evProgramLocalState;
+}
+
+function getPublicFamilyRecord(family: LocalFamilyRecord): FamilyRecord {
+  return {
+    id: family.id,
+    name: family.name,
+    theme: family.theme,
+    audio_enabled: family.audio_enabled,
+    child_sleep_time: family.child_sleep_time,
+    parent_sleep_time: family.parent_sleep_time,
+    day_reset_time: family.day_reset_time,
+    created_at: family.created_at
+  };
+}
+
+function getFamilyState(familyId: string) {
+  const familyState = getState().families[familyId];
+
+  if (!familyState) {
+    throw new Error("Aile kaydi bulunamadi.");
   }
 
-  return family;
+  return familyState;
 }
 
-export async function getLocalDashboardSnapshot() {
-  const session = await getParentSession();
+function toSnapshot(session: AppSession | null): DashboardPayload {
+  if (!session) {
+    return getEmptyDashboardSnapshot(null);
+  }
+
+  if (!session.familyId) {
+    return getEmptyDashboardSnapshot(session);
+  }
+
+  const familyState = getState().families[session.familyId];
+
+  if (!familyState) {
+    return getEmptyDashboardSnapshot(session);
+  }
+
+  return {
+    authRequired: false,
+    setupRequired: false,
+    family: getPublicFamilyRecord(familyState.family),
+    session: getDashboardSession(session),
+    users: clone(familyState.users),
+    tasks: clone(familyState.tasks),
+    completions: clone(familyState.completions),
+    rewards: clone(familyState.rewards),
+    redemptions: clone(familyState.redemptions),
+    pointEvents: clone(
+      [...familyState.pointEvents]
+        .sort((a, b) => b.created_at.localeCompare(a.created_at))
+        .slice(0, 60)
+    ),
+    today: {
+      dateKey: getDateKey(new Date(), familyState.family),
+      label: getTurkishDateLabel(new Date(), familyState.family),
+      weekday: new Intl.DateTimeFormat("tr-TR", {
+        timeZone: "Europe/Istanbul",
+        weekday: "long"
+      }).format(new Date()),
+      activeTimeBlock: getActiveTimeBlock(new Date(), familyState.family)
+    },
+    week: getWeekDays(new Date(), familyState.family)
+  };
+}
+
+export async function getLocalDashboardSnapshot(session: AppSession | null = null) {
+  return toSnapshot(session);
+}
+
+export async function registerLocalAccount(username: string, password: string) {
   const state = getState();
-  const authenticated = Boolean(session?.familyId && session.familyId === state.family?.id);
-  return toSnapshot(state, authenticated);
+
+  if (state.accounts.some((account) => account.username === username)) {
+    throw new Error("Bu kullanici adi zaten kullaniliyor.");
+  }
+
+  const account: LocalAccountRecord = {
+    id: randomUUID(),
+    username,
+    password_hash: hashSync(password, 10),
+    family_id: null,
+    created_at: nowIso()
+  };
+
+  state.accounts.push(account);
+
+  return {
+    accountId: account.id,
+    username: account.username,
+    familyId: account.family_id,
+    accessToken: randomUUID(),
+    refreshToken: randomUUID()
+  };
 }
 
-export async function bootstrapLocalApp({
-  familyName,
-  parentName,
-  pin,
-  includeSampleData
-}: SetupPayload) {
+export async function loginLocalAccount(username: string, password: string) {
+  const account = getState().accounts.find((item) => item.username === username);
+
+  if (!account || !compareSync(password, account.password_hash)) {
+    throw new Error("Kullanici adi veya sifre hatali.");
+  }
+
+  return {
+    accountId: account.id,
+    username: account.username,
+    familyId: account.family_id,
+    accessToken: randomUUID(),
+    refreshToken: randomUUID()
+  };
+}
+
+export async function bootstrapLocalApp(accountId: string, payload: SetupPayload) {
+  const state = getState();
+  const account = state.accounts.find((item) => item.id === accountId);
+
+  if (!account) {
+    throw new Error("Hesap bulunamadi.");
+  }
+
+  if (account.family_id) {
+    throw new Error("Kurulum zaten tamamlandi.");
+  }
+
   const createdAt = nowIso();
   const familyId = randomUUID();
-  const fatherId = randomUUID();
-  const motherId = randomUUID();
+  const parentUserId = randomUUID();
+  const sampleParentId = randomUUID();
   const childOneId = randomUUID();
   const childTwoId = randomUUID();
-  const sampleUserIds = [fatherId, motherId, childOneId, childTwoId];
+  const sampleChildIds = [childOneId, childTwoId];
 
-  globalThis.evProgramLocalState = {
+  state.families[familyId] = {
     family: {
       id: familyId,
-      name: familyName,
+      name: payload.familyName,
       theme: "acik",
       audio_enabled: true,
       child_sleep_time: "22:00",
       parent_sleep_time: "00:00",
       day_reset_time: "00:00",
       created_at: createdAt,
-      parent_pin_hash: hashSync(pin, 10)
+      parent_pin_hash: hashSync(payload.pin, 10)
     },
     users: [
       {
-        id: fatherId,
+        id: parentUserId,
         family_id: familyId,
-        name: parentName,
+        name: payload.parentName,
         role: "ebeveyn",
-        avatar: "👨",
+        avatar: "\u{1F468}",
         color: "#2DD4BF",
         birthdate: null,
         points: 0,
         created_at: createdAt
       },
-      ...(includeSampleData
+      ...(payload.includeSampleData
         ? [
             {
-              id: motherId,
+              id: sampleParentId,
               family_id: familyId,
               name: "Esra",
               role: "ebeveyn" as const,
-              avatar: "👩",
+              avatar: "\u{1F469}",
               color: "#FB7185",
               birthdate: null,
               points: 0,
@@ -260,8 +280,8 @@ export async function bootstrapLocalApp({
               id: childOneId,
               family_id: familyId,
               name: "Poyraz",
-              role: "çocuk" as const,
-              avatar: "🦁",
+              role: "\u00e7ocuk" as const,
+              avatar: "\u{1F981}",
               color: "#60A5FA",
               birthdate: "2016-05-14",
               points: 0,
@@ -271,8 +291,8 @@ export async function bootstrapLocalApp({
               id: childTwoId,
               family_id: familyId,
               name: "Aden",
-              role: "çocuk" as const,
-              avatar: "🦄",
+              role: "\u00e7ocuk" as const,
+              avatar: "\u{1F984}",
               color: "#22C55E",
               birthdate: "2019-09-02",
               points: 0,
@@ -281,16 +301,24 @@ export async function bootstrapLocalApp({
           ]
         : [])
     ],
-    tasks: includeSampleData ? buildSampleTasks(familyId, sampleUserIds, createdAt) : [],
+    tasks: payload.includeSampleData ? buildSampleTasks(familyId, sampleChildIds, createdAt) : [],
     completions: [],
-    rewards: includeSampleData
+    rewards: payload.includeSampleData
       ? [
           {
             id: randomUUID(),
             family_id: familyId,
-            title: "Film gecesi seçimi",
+            title: "Film gecesi secimi",
             points_required: 120,
             approval_required: false,
+            created_at: createdAt
+          },
+          {
+            id: randomUUID(),
+            family_id: familyId,
+            title: "Hafta sonu dondurma",
+            points_required: 180,
+            approval_required: true,
             created_at: createdAt
           }
         ]
@@ -299,45 +327,42 @@ export async function bootstrapLocalApp({
     pointEvents: []
   };
 
-  return getLocalDashboardSnapshot();
-}
-
-export async function verifyLocalParentPin(pin: string) {
-  const family = requireFamily();
-
-  if (!compareSync(pin, family.parent_pin_hash)) {
-    throw new Error("PIN hatalı.");
-  }
+  account.family_id = familyId;
 
   return {
-    id: family.id,
-    name: family.name,
-    theme: family.theme,
-    audio_enabled: family.audio_enabled,
-    created_at: family.created_at
+    familyId
   };
 }
 
+export async function verifyLocalParentPin(familyId: string, pin: string) {
+  const family = getFamilyState(familyId).family;
+
+  if (!compareSync(pin, family.parent_pin_hash)) {
+    throw new Error("PIN hatali.");
+  }
+
+  return getPublicFamilyRecord(family);
+}
+
 export async function saveLocalUser(familyId: string, payload: UserFormPayload) {
-  const state = getState();
+  const familyState = getFamilyState(familyId);
 
   if (payload.id) {
-    state.users = state.users.map((user) =>
-      user.id === payload.id
-        ? {
-            ...user,
-            name: payload.name,
-            role: payload.role,
-            avatar: payload.avatar,
-            color: payload.color,
-            birthdate: payload.birthdate || null
-          }
-        : user
-    );
+    const target = familyState.users.find((user) => user.id === payload.id);
+
+    if (!target) {
+      throw new Error("Kullanici bulunamadi.");
+    }
+
+    target.name = payload.name;
+    target.role = payload.role;
+    target.avatar = payload.avatar;
+    target.color = payload.color;
+    target.birthdate = payload.birthdate || null;
     return;
   }
 
-  state.users.push({
+  familyState.users.push({
     id: randomUUID(),
     family_id: familyId,
     name: payload.name,
@@ -351,6 +376,11 @@ export async function saveLocalUser(familyId: string, payload: UserFormPayload) 
 }
 
 export async function saveLocalTask(familyId: string, payload: TaskFormPayload) {
+  const familyState = getFamilyState(familyId);
+  const existing = payload.id
+    ? familyState.tasks.find((item) => item.id === payload.id)
+    : null;
+
   const task: TaskRecord = {
     id: payload.id || randomUUID(),
     family_id: familyId,
@@ -362,97 +392,105 @@ export async function saveLocalTask(familyId: string, payload: TaskFormPayload) 
     days: payload.days,
     special_dates: payload.specialDates,
     time_block: payload.timeBlock,
-    created_at: payload.id
-      ? getState().tasks.find((item) => item.id === payload.id)?.created_at || nowIso()
-      : nowIso()
+    created_at: existing?.created_at || nowIso()
   };
 
-  const state = getState();
-  state.tasks = state.tasks.filter((item) => item.id !== task.id);
-  state.tasks.push(task);
+  familyState.tasks = familyState.tasks.filter((item) => item.id !== task.id);
+  familyState.tasks.push(task);
 }
 
 export async function saveLocalReward(familyId: string, payload: RewardFormPayload) {
+  const familyState = getFamilyState(familyId);
+  const existing = payload.id
+    ? familyState.rewards.find((item) => item.id === payload.id)
+    : null;
+
   const reward: RewardRecord = {
     id: payload.id || randomUUID(),
     family_id: familyId,
     title: payload.title,
     points_required: payload.pointsRequired,
     approval_required: payload.approvalRequired,
-    created_at: payload.id
-      ? getState().rewards.find((item) => item.id === payload.id)?.created_at || nowIso()
-      : nowIso()
+    created_at: existing?.created_at || nowIso()
   };
 
-  const state = getState();
-  state.rewards = state.rewards.filter((item) => item.id !== reward.id);
-  state.rewards.push(reward);
+  familyState.rewards = familyState.rewards.filter((item) => item.id !== reward.id);
+  familyState.rewards.push(reward);
 }
 
-export async function toggleLocalTaskCompletion(taskId: string, userId: string, dateKey: string) {
-  const state = getState();
-  const task = state.tasks.find((item) => item.id === taskId);
-  const user = state.users.find((item) => item.id === userId);
+export async function toggleLocalTaskCompletion(
+  familyId: string,
+  taskId: string,
+  userId: string,
+  dateKey: string
+) {
+  const familyState = getFamilyState(familyId);
+  const task = familyState.tasks.find((item) => item.id === taskId);
+  const user = familyState.users.find((item) => item.id === userId);
 
   if (!task || !user) {
-    throw new Error("Görev veya kullanıcı bulunamadı.");
+    throw new Error("Gorev veya kullanici bulunamadi.");
   }
 
-  const existing = state.completions.find(
-    (item) => item.task_id === taskId && item.user_id === userId && item.completion_date === dateKey
+  const existing = familyState.completions.find(
+    (item) =>
+      item.task_id === taskId &&
+      item.user_id === userId &&
+      item.completion_date === dateKey
   );
 
   if (existing) {
-    state.completions = state.completions.filter((item) => item.id !== existing.id);
+    familyState.completions = familyState.completions.filter(
+      (item) => item.id !== existing.id
+    );
     user.points -= existing.points_earned;
-    state.pointEvents.unshift({
+    familyState.pointEvents.unshift({
       id: randomUUID(),
-      family_id: user.family_id,
+      family_id: familyId,
       user_id: userId,
       delta: -existing.points_earned,
       source: "gorev",
       task_id: taskId,
       reward_id: null,
-      note: "Görev geri alındı",
+      note: "Gorev geri alindi",
       created_at: nowIso()
     });
     return { completed: false, points_change: -existing.points_earned, total_points: user.points };
   }
 
-  const completion: CompletionRecord = {
+  familyState.completions.push({
     id: randomUUID(),
-    family_id: user.family_id,
+    family_id: familyId,
     user_id: userId,
     task_id: taskId,
     completion_date: dateKey,
     points_earned: task.points,
     created_at: nowIso()
-  };
+  });
 
-  state.completions.push(completion);
   user.points += task.points;
-  state.pointEvents.unshift({
+  familyState.pointEvents.unshift({
     id: randomUUID(),
-    family_id: user.family_id,
+    family_id: familyId,
     user_id: userId,
     delta: task.points,
     source: "gorev",
     task_id: taskId,
     reward_id: null,
-    note: "Görev tamamlandı",
+    note: "Gorev tamamlandi",
     created_at: nowIso()
   });
 
   return { completed: true, points_change: task.points, total_points: user.points };
 }
 
-export async function requestLocalReward(userId: string, rewardId: string) {
-  const state = getState();
-  const user = state.users.find((item) => item.id === userId);
-  const reward = state.rewards.find((item) => item.id === rewardId);
+export async function requestLocalReward(familyId: string, userId: string, rewardId: string) {
+  const familyState = getFamilyState(familyId);
+  const user = familyState.users.find((item) => item.id === userId);
+  const reward = familyState.rewards.find((item) => item.id === rewardId);
 
   if (!user || !reward) {
-    throw new Error("Kullanıcı veya ödül bulunamadı.");
+    throw new Error("Kullanici veya odul bulunamadi.");
   }
 
   if (user.points < reward.points_required) {
@@ -461,7 +499,7 @@ export async function requestLocalReward(userId: string, rewardId: string) {
 
   const redemption: RedemptionRecord = {
     id: randomUUID(),
-    family_id: user.family_id,
+    family_id: familyId,
     user_id: userId,
     reward_id: rewardId,
     status: reward.approval_required ? "beklemede" : "onaylandi",
@@ -469,19 +507,19 @@ export async function requestLocalReward(userId: string, rewardId: string) {
     resolved_at: reward.approval_required ? null : nowIso()
   };
 
-  state.redemptions.unshift(redemption);
+  familyState.redemptions.unshift(redemption);
 
   if (!reward.approval_required) {
     user.points -= reward.points_required;
-    state.pointEvents.unshift({
+    familyState.pointEvents.unshift({
       id: randomUUID(),
-      family_id: user.family_id,
+      family_id: familyId,
       user_id: userId,
       delta: -reward.points_required,
       source: "odul",
       task_id: null,
       reward_id: rewardId,
-      note: "Ödül otomatik verildi",
+      note: "Odul otomatik verildi",
       created_at: nowIso()
     });
   }
@@ -489,12 +527,16 @@ export async function requestLocalReward(userId: string, rewardId: string) {
   return redemption;
 }
 
-export async function resolveLocalReward(redemptionId: string, status: "onaylandi" | "reddedildi") {
-  const state = getState();
-  const redemption = state.redemptions.find((item) => item.id === redemptionId);
+export async function resolveLocalReward(
+  familyId: string,
+  redemptionId: string,
+  status: "onaylandi" | "reddedildi"
+) {
+  const familyState = getFamilyState(familyId);
+  const redemption = familyState.redemptions.find((item) => item.id === redemptionId);
 
   if (!redemption) {
-    throw new Error("Talep bulunamadı.");
+    throw new Error("Talep bulunamadi.");
   }
 
   if (redemption.status !== "beklemede") {
@@ -505,27 +547,27 @@ export async function resolveLocalReward(redemptionId: string, status: "onayland
   redemption.resolved_at = nowIso();
 
   if (status === "onaylandi") {
-    const user = state.users.find((item) => item.id === redemption.user_id);
-    const reward = state.rewards.find((item) => item.id === redemption.reward_id);
+    const user = familyState.users.find((item) => item.id === redemption.user_id);
+    const reward = familyState.rewards.find((item) => item.id === redemption.reward_id);
 
     if (!user || !reward) {
-      throw new Error("Talep işlenemedi.");
+      throw new Error("Talep islenemedi.");
     }
 
     if (user.points < reward.points_required) {
-      throw new Error("Onay için yeterli puan yok.");
+      throw new Error("Onay icin yeterli puan yok.");
     }
 
     user.points -= reward.points_required;
-    state.pointEvents.unshift({
+    familyState.pointEvents.unshift({
       id: randomUUID(),
-      family_id: user.family_id,
+      family_id: familyId,
       user_id: user.id,
       delta: -reward.points_required,
       source: "odul",
       task_id: null,
       reward_id: reward.id,
-      note: "Ödül onaylandı",
+      note: "Odul onaylandi",
       created_at: nowIso()
     });
   }
@@ -533,18 +575,23 @@ export async function resolveLocalReward(redemptionId: string, status: "onayland
   return redemption;
 }
 
-export async function adjustLocalPoints(userId: string, delta: number, note: string) {
-  const state = getState();
-  const user = state.users.find((item) => item.id === userId);
+export async function adjustLocalPoints(
+  familyId: string,
+  userId: string,
+  delta: number,
+  note: string
+) {
+  const familyState = getFamilyState(familyId);
+  const user = familyState.users.find((item) => item.id === userId);
 
   if (!user) {
-    throw new Error("Kullanıcı bulunamadı.");
+    throw new Error("Kullanici bulunamadi.");
   }
 
   user.points += delta;
-  state.pointEvents.unshift({
+  familyState.pointEvents.unshift({
     id: randomUUID(),
-    family_id: user.family_id,
+    family_id: familyId,
     user_id: userId,
     delta,
     source: "manuel",
@@ -558,19 +605,15 @@ export async function adjustLocalPoints(userId: string, delta: number, note: str
 }
 
 export async function resetLocalProgress(familyId: string) {
-  const state = getState();
+  const familyState = getFamilyState(familyId);
 
-  if (state.family?.id !== familyId) {
-    throw new Error("Aile bulunamadı.");
-  }
-
-  state.users = state.users.map((user) => ({
+  familyState.users = familyState.users.map((user) => ({
     ...user,
     points: 0
   }));
-  state.completions = [];
-  state.redemptions = [];
-  state.pointEvents = [];
+  familyState.completions = [];
+  familyState.redemptions = [];
+  familyState.pointEvents = [];
 }
 
 export async function updateLocalFamilySettings(
@@ -584,11 +627,7 @@ export async function updateLocalFamilySettings(
     day_reset_time: string;
   }>
 ) {
-  const family = requireFamily();
-
-  if (family.id !== familyId) {
-    throw new Error("Aile bulunamadı.");
-  }
+  const family = getFamilyState(familyId).family;
 
   if (typeof payload.name === "string" && payload.name.trim()) {
     family.name = payload.name.trim();

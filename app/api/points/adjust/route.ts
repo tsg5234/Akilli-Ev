@@ -4,16 +4,21 @@ import { jsonError, jsonOk } from "@/lib/http";
 
 export async function POST(request: Request) {
   try {
-    await requireParentSession();
+    const session = await requireParentSession();
     const body = (await request.json()) as { userId?: string; delta?: number; note?: string };
 
     if (!body.userId?.trim() || typeof body.delta !== "number") {
-      return jsonError("Kullanıcı ve puan farkı gerekli.");
+      return jsonError("Kullanici ve puan farki gerekli.");
     }
 
-    await adjustPoints(body.userId.trim(), body.delta, body.note?.trim() || "Manuel düzenleme");
+    await adjustPoints(
+      session.familyId,
+      body.userId.trim(),
+      body.delta,
+      body.note?.trim() || "Manuel duzenleme"
+    );
     return jsonOk(await getDashboardSnapshot());
   } catch (error) {
-    return jsonError(error instanceof Error ? error.message : "Puan düzenlenemedi", 500);
+    return jsonError(error instanceof Error ? error.message : "Puan duzenlenemedi.", 500);
   }
 }

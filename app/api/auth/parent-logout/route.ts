@@ -1,7 +1,7 @@
-import { clearAppSession } from "@/lib/auth";
+import { clearParentSession } from "@/lib/auth";
 import { jsonOk } from "@/lib/http";
 
 export async function POST() {
-  await clearAppSession();
+  await clearParentSession();
   return jsonOk({ success: true });
 }

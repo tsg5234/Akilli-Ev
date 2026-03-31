@@ -1,9 +1,10 @@
-import { createParentSession } from "@/lib/auth";
+import { grantParentAccess, requireFamilySession } from "@/lib/auth";
 import { verifyParentPin } from "@/lib/db";
 import { jsonError, jsonOk } from "@/lib/http";
 
 export async function POST(request: Request) {
   try {
+    const session = await requireFamilySession();
     const body = (await request.json()) as { pin?: string };
     const pin = body.pin?.trim() ?? "";
 
@@ -11,14 +12,11 @@ export async function POST(request: Request) {
       return jsonError("PIN girin.");
     }
 
-    const family = await verifyParentPin(pin);
-    await createParentSession({
-      familyId: family.id,
-      role: "ebeveyn"
-    });
+    await verifyParentPin(session.familyId, pin);
+    await grantParentAccess(session);
 
     return jsonOk({ success: true });
   } catch (error) {
-    return jsonError(error instanceof Error ? error.message : "Giriş yapılamadı", 401);
+    return jsonError(error instanceof Error ? error.message : "Giris yapilamadi.", 401);
   }
 }

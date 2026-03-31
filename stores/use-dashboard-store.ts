@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import type {
+  AccountAuthPayload,
   DashboardPayload,
   RewardFormPayload,
   TaskFormPayload,
@@ -39,6 +40,9 @@ interface DashboardStore {
   closeAdmin: () => void;
   clearToast: () => void;
   clearCelebration: () => void;
+  loginAccount: (payload: AccountAuthPayload) => Promise<boolean>;
+  registerAccount: (payload: AccountAuthPayload) => Promise<boolean>;
+  logoutAccount: () => Promise<void>;
   loginParent: (pin: string) => Promise<boolean>;
   logoutParent: () => Promise<void>;
   completeTask: (
@@ -81,7 +85,7 @@ async function requestJson<T>(url: string, init?: RequestInit) {
   const payload = (await response.json()) as T & { error?: string };
 
   if (!response.ok) {
-    throw new Error(payload.error || "İşlem başarısız.");
+    throw new Error(payload.error || "Islem basarisiz.");
   }
 
   return payload;
@@ -92,7 +96,7 @@ function pickDefaultProfile(data: DashboardPayload | null) {
     return null;
   }
 
-  return data.users.find((user) => user.role === "çocuk")?.id ?? data.users[0]?.id ?? null;
+  return data.users.find((user) => user.role === "\u00e7ocuk")?.id ?? data.users[0]?.id ?? null;
 }
 
 function withDashboardState(
@@ -140,14 +144,14 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
     } catch (error) {
       set({
         loading: false,
-        error: error instanceof Error ? error.message : "Veriler yüklenemedi."
+        error: error instanceof Error ? error.message : "Veriler yuklenemedi."
       });
     }
   },
   setActiveProfile(profileId) {
     set({
       activeProfileId: profileId,
-      toast: { kind: "bilgi", message: "Profil seçildi." }
+      toast: { kind: "bilgi", message: "Profil secildi." }
     });
   },
   openLogin() {
@@ -168,6 +172,93 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
   clearCelebration() {
     set({ celebration: null });
   },
+  async loginAccount(payload) {
+    set({ working: true, error: null });
+
+    try {
+      await requestJson<{ success: boolean }>("/api/auth/account-login", {
+        method: "POST",
+        body: JSON.stringify(payload)
+      });
+
+      const data = await requestJson<DashboardPayload>("/api/dashboard");
+      withDashboardState(set, data);
+      set({
+        working: false,
+        loginOpen: false,
+        adminOpen: false,
+        toast: { kind: "basari", message: "Hesaba giris yapildi." }
+      });
+      return true;
+    } catch (error) {
+      set({
+        working: false,
+        toast: {
+          kind: "hata",
+          message: error instanceof Error ? error.message : "Giris yapilamadi."
+        }
+      });
+      return false;
+    }
+  },
+  async registerAccount(payload) {
+    set({ working: true, error: null });
+
+    try {
+      await requestJson<{ success: boolean }>("/api/auth/account-register", {
+        method: "POST",
+        body: JSON.stringify(payload)
+      });
+
+      const data = await requestJson<DashboardPayload>("/api/dashboard");
+      withDashboardState(set, data);
+      set({
+        working: false,
+        loginOpen: false,
+        adminOpen: false,
+        toast: { kind: "basari", message: "Hesap olusturuldu." }
+      });
+      return true;
+    } catch (error) {
+      set({
+        working: false,
+        toast: {
+          kind: "hata",
+          message: error instanceof Error ? error.message : "Hesap olusturulamadi."
+        }
+      });
+      return false;
+    }
+  },
+  async logoutAccount() {
+    set({ working: true });
+
+    try {
+      await requestJson<{ success: boolean }>("/api/auth/logout", {
+        method: "POST",
+        body: JSON.stringify({})
+      });
+
+      const data = await requestJson<DashboardPayload>("/api/dashboard");
+      withDashboardState(set, data);
+      set({
+        working: false,
+        adminOpen: false,
+        loginOpen: false,
+        pendingTaskKeys: [],
+        celebration: null,
+        toast: { kind: "bilgi", message: "Hesaptan cikis yapildi." }
+      });
+    } catch (error) {
+      set({
+        working: false,
+        toast: {
+          kind: "hata",
+          message: error instanceof Error ? error.message : "Cikis yapilamadi."
+        }
+      });
+    }
+  },
   async loginParent(pin) {
     set({ working: true, error: null });
 
@@ -183,7 +274,7 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
         working: false,
         loginOpen: false,
         adminOpen: true,
-        toast: { kind: "basari", message: "Ebeveyn modu açıldı." }
+        toast: { kind: "basari", message: "Ebeveyn modu acildi." }
       });
       return true;
     } catch (error) {
@@ -191,7 +282,7 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
         working: false,
         toast: {
           kind: "hata",
-          message: error instanceof Error ? error.message : "Giriş yapılamadı."
+          message: error instanceof Error ? error.message : "Giris yapilamadi."
         }
       });
       return false;
@@ -201,7 +292,7 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
     set({ working: true });
 
     try {
-      await requestJson<{ success: boolean }>("/api/auth/logout", {
+      await requestJson<{ success: boolean }>("/api/auth/parent-logout", {
         method: "POST",
         body: JSON.stringify({})
       });
@@ -211,14 +302,14 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
       set({
         working: false,
         adminOpen: false,
-        toast: { kind: "bilgi", message: "Ebeveyn oturumu kapatıldı." }
+        toast: { kind: "bilgi", message: "Ebeveyn kilidi kapatildi." }
       });
     } catch (error) {
       set({
         working: false,
         toast: {
           kind: "hata",
-          message: error instanceof Error ? error.message : "Çıkış yapılamadı."
+          message: error instanceof Error ? error.message : "Cikis yapilamadi."
         }
       });
     }
@@ -252,7 +343,7 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
           points,
           key: (state.celebration?.key ?? 0) + 1
         },
-        toast: { kind: "basari", message: "Aferin! Görev işlendi." }
+        toast: { kind: "basari", message: "Aferin! Gorev islendi." }
       }));
     } catch (error) {
       set((state) => ({
@@ -260,7 +351,7 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
         pendingTaskKeys: state.pendingTaskKeys.filter((key) => key !== taskKey),
         toast: {
           kind: "hata",
-          message: error instanceof Error ? error.message : "Görev güncellenemedi."
+          message: error instanceof Error ? error.message : "Gorev guncellenemedi."
         }
       }));
     }
@@ -276,14 +367,14 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
       withDashboardState(set, data);
       set({
         working: false,
-        toast: { kind: "basari", message: "Ödül talebi gönderildi." }
+        toast: { kind: "basari", message: "Odul talebi gonderildi." }
       });
     } catch (error) {
       set({
         working: false,
         toast: {
           kind: "hata",
-          message: error instanceof Error ? error.message : "Ödül talebi gönderilemedi."
+          message: error instanceof Error ? error.message : "Odul talebi gonderilemedi."
         }
       });
     }
@@ -299,14 +390,14 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
       withDashboardState(set, data);
       set({
         working: false,
-        toast: { kind: "basari", message: "Kullanıcı kaydedildi." }
+        toast: { kind: "basari", message: "Kullanici kaydedildi." }
       });
     } catch (error) {
       set({
         working: false,
         toast: {
           kind: "hata",
-          message: error instanceof Error ? error.message : "Kullanıcı kaydedilemedi."
+          message: error instanceof Error ? error.message : "Kullanici kaydedilemedi."
         }
       });
     }
@@ -322,14 +413,14 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
       withDashboardState(set, data);
       set({
         working: false,
-        toast: { kind: "basari", message: "Görev kaydedildi." }
+        toast: { kind: "basari", message: "Gorev kaydedildi." }
       });
     } catch (error) {
       set({
         working: false,
         toast: {
           kind: "hata",
-          message: error instanceof Error ? error.message : "Görev kaydedilemedi."
+          message: error instanceof Error ? error.message : "Gorev kaydedilemedi."
         }
       });
     }
@@ -345,14 +436,14 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
       withDashboardState(set, data);
       set({
         working: false,
-        toast: { kind: "basari", message: "Ödül kaydedildi." }
+        toast: { kind: "basari", message: "Odul kaydedildi." }
       });
     } catch (error) {
       set({
         working: false,
         toast: {
           kind: "hata",
-          message: error instanceof Error ? error.message : "Ödül kaydedilemedi."
+          message: error instanceof Error ? error.message : "Odul kaydedilemedi."
         }
       });
     }
@@ -373,7 +464,7 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
         working: false,
         toast: {
           kind: "basari",
-          message: status === "onaylandi" ? "Ödül onaylandı." : "Ödül reddedildi."
+          message: status === "onaylandi" ? "Odul onaylandi." : "Odul reddedildi."
         }
       });
     } catch (error) {
@@ -381,7 +472,7 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
         working: false,
         toast: {
           kind: "hata",
-          message: error instanceof Error ? error.message : "Talep güncellenemedi."
+          message: error instanceof Error ? error.message : "Talep guncellenemedi."
         }
       });
     }
@@ -397,14 +488,14 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
       withDashboardState(set, data);
       set({
         working: false,
-        toast: { kind: "basari", message: "Puan düzenlendi." }
+        toast: { kind: "basari", message: "Puan duzenlendi." }
       });
     } catch (error) {
       set({
         working: false,
         toast: {
           kind: "hata",
-          message: error instanceof Error ? error.message : "Puan düzenlenemedi."
+          message: error instanceof Error ? error.message : "Puan duzenlenemedi."
         }
       });
     }
@@ -420,14 +511,14 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
       withDashboardState(set, data);
       set({
         working: false,
-        toast: { kind: "basari", message: "Test verileri sıfırlandı." }
+        toast: { kind: "basari", message: "Test verileri sifirlandi." }
       });
     } catch (error) {
       set({
         working: false,
         toast: {
           kind: "hata",
-          message: error instanceof Error ? error.message : "Test verileri sıfırlanamadı."
+          message: error instanceof Error ? error.message : "Test verileri sifirlanamadi."
         }
       });
     }
@@ -443,14 +534,14 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
       withDashboardState(set, data);
       set({
         working: false,
-        toast: { kind: "basari", message: "Aile ayarları kaydedildi." }
+        toast: { kind: "basari", message: "Aile ayarlari kaydedildi." }
       });
     } catch (error) {
       set({
         working: false,
         toast: {
           kind: "hata",
-          message: error instanceof Error ? error.message : "Aile ayarları kaydedilemedi."
+          message: error instanceof Error ? error.message : "Aile ayarlari kaydedilemedi."
         }
       });
     }
