@@ -365,9 +365,9 @@ button {
 
 .kid-profiles-title-wrap {
   min-width: 0;
-  width: 100%;
-  max-width: none;
-  margin: 0 auto;
+  width: auto;
+  max-width: min(100%, 36rem);
+  margin: 0;
 }
 
 .kid-profiles-header {
@@ -392,7 +392,7 @@ button {
 
 .kid-family-title {
   margin-top: 0 !important;
-  text-align: center;
+  text-align: left;
   font-size: clamp(2.8rem, 4.8vw, 5.4rem) !important;
   line-height: 0.88;
   background-image: none;
@@ -1220,14 +1220,14 @@ button {
   }
 
   .kid-profiles-title-wrap {
-    width: 100%;
-    max-width: none;
-    margin: 0 auto;
+    width: auto;
+    max-width: min(100%, 28rem);
+    margin: 0;
   }
 
   .kid-family-title {
     margin-top: 0 !important;
-    text-align: center;
+    text-align: left;
     font-size: clamp(2.55rem, 5vw, 3.9rem) !important;
     line-height: 0.88;
     background-image: none;
@@ -1420,12 +1420,11 @@ button {
   }
 
   .kid-profiles-title-wrap {
-    width: 100%;
-    max-width: none;
+    max-width: 100%;
   }
 
   .kid-family-title {
-    text-align: center;
+    text-align: left;
   }
 
   .kid-profiles-header-side {
@@ -1486,8 +1485,8 @@ button {
   }
 
   .kid-profiles-title-wrap {
-    width: 100%;
-    max-width: none;
+    width: auto;
+    max-width: min(100%, 32rem);
   }
 
   .kid-profiles-header-side {
@@ -1495,7 +1494,6 @@ button {
   }
 
   .kid-family-title {
-    text-align: center;
     font-size: clamp(2.45rem, 4.5vw, 3.7rem) !important;
     line-height: 0.88;
   }
