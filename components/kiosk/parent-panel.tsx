@@ -7,6 +7,7 @@ import { AvatarDisplay } from "@/components/kiosk/avatar-display";
 import { AvatarPicker } from "@/components/kiosk/avatar-picker";
 import { getDefaultAvatar, normalizeAvatarForRole } from "@/lib/avatar";
 import { TIME_BLOCK_LABELS, WEEKDAY_LABELS } from "@/lib/schedule";
+import { DEFAULT_TASK_ICON } from "@/lib/task-defaults";
 import type { DashboardPayload, RewardFormPayload, TaskFormPayload, UserFormPayload } from "@/lib/types";
 
 type TabId = "kullanicilar" | "gorevler" | "oduller" | "puanlar" | "ayarlar";
@@ -53,7 +54,7 @@ const userDefaults: UserFormPayload = {
 
 const taskDefaults: TaskFormPayload = {
   title: "",
-  icon: "⭐",
+  icon: DEFAULT_TASK_ICON,
   points: 20,
   assignedTo: [],
   scheduleType: "gunluk",
@@ -296,21 +297,13 @@ export function ParentPanel(props: ParentPanelProps) {
     <div className="grid gap-5 xl:grid-cols-[0.95fr_1.05fr]">
       <Card title="Görev düzenleyici" description="Tablet ekranında görünecek görevleri planlayın.">
         <div className="space-y-4">
-          <label className="block space-y-2">
-            <Label>Başlık</Label>
-            <input
-              value={taskDraft.title}
-              onChange={(event) => setTaskDraft((current) => ({ ...current, title: event.target.value }))}
-              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3"
-            />
-          </label>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_180px]">
             <label className="block space-y-2">
-              <Label>İkon</Label>
+              <Label>Başlık</Label>
               <input
-                value={taskDraft.icon}
-                onChange={(event) => setTaskDraft((current) => ({ ...current, icon: event.target.value }))}
-                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-2xl"
+                value={taskDraft.title}
+                onChange={(event) => setTaskDraft((current) => ({ ...current, title: event.target.value }))}
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3"
               />
             </label>
             <label className="block space-y-2">
@@ -493,7 +486,7 @@ export function ParentPanel(props: ParentPanelProps) {
                 setTaskDraft({
                   id: task.id,
                   title: task.title,
-                  icon: task.icon,
+                  icon: task.icon || DEFAULT_TASK_ICON,
                   points: task.points,
                   assignedTo: task.assigned_to,
                   scheduleType: task.schedule_type,
@@ -507,7 +500,7 @@ export function ParentPanel(props: ParentPanelProps) {
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-4">
                   <div className="flex h-14 w-14 items-center justify-center rounded-[1.2rem] bg-slate-100 text-3xl">
-                    {task.icon}
+                    {task.icon || DEFAULT_TASK_ICON}
                   </div>
                   <div>
                     <div className="text-lg font-semibold">{task.title}</div>

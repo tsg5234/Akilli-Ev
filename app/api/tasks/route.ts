@@ -1,6 +1,7 @@
 import { requireParentSession } from "@/lib/auth";
 import { getDashboardSnapshot, saveTask } from "@/lib/db";
 import { jsonError, jsonOk } from "@/lib/http";
+import { DEFAULT_TASK_ICON } from "@/lib/task-defaults";
 import type { TaskFormPayload } from "@/lib/types";
 
 export async function POST(request: Request) {
@@ -8,14 +9,14 @@ export async function POST(request: Request) {
     const session = await requireParentSession();
     const body = (await request.json()) as TaskFormPayload;
 
-    if (!body.title?.trim() || !body.icon?.trim() || !body.assignedTo?.length) {
-      return jsonError("Başlık, ikon ve atanan kişiler gerekli.");
+    if (!body.title?.trim() || !body.assignedTo?.length) {
+      return jsonError("Başlık ve atanan kişiler gerekli.");
     }
 
     await saveTask(session.familyId, {
       ...body,
       title: body.title.trim(),
-      icon: body.icon.trim(),
+      icon: body.icon?.trim() || DEFAULT_TASK_ICON,
       assignedTo: body.assignedTo,
       days: body.days ?? [],
       specialDates: body.specialDates ?? []

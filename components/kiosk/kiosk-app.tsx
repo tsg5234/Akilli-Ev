@@ -23,6 +23,7 @@ import {
   RefreshCw,
   Star
 } from "lucide-react";
+import { DEFAULT_TASK_ICON } from "@/lib/task-defaults";
 import { AccountScreen } from "@/components/kiosk/account-screen";
 import { AvatarDisplay } from "@/components/kiosk/avatar-display";
 import { CelebrationLayer } from "@/components/kiosk/celebration-layer";
@@ -985,7 +986,7 @@ export function KioskApp({ mode }: KioskAppProps) {
                               boxShadow: `0 18px 34px ${selectedTheme.glow}`
                             }}
                           >
-                            {task.icon}
+                            {task.icon || DEFAULT_TASK_ICON}
                           </div>
 
                           <div className="kid-task-copy min-w-0 flex-1">

@@ -4,6 +4,7 @@ import { compareSync, hashSync } from "bcryptjs";
 import { randomUUID } from "node:crypto";
 import type { AppSession } from "@/lib/auth";
 import { buildSampleTasks } from "@/lib/sample-data";
+import { DEFAULT_TASK_ICON } from "@/lib/task-defaults";
 import {
   getActiveTimeBlock,
   getDateKey,
@@ -354,7 +355,7 @@ export async function saveLocalTask(familyId: string, payload: TaskFormPayload) 
     id: payload.id || randomUUID(),
     family_id: familyId,
     title: payload.title,
-    icon: payload.icon,
+    icon: payload.icon?.trim() || DEFAULT_TASK_ICON,
     points: payload.points,
     assigned_to: payload.assignedTo,
     schedule_type: payload.scheduleType,

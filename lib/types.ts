@@ -147,7 +147,7 @@ export interface UserFormPayload {
 export interface TaskFormPayload {
   id?: string;
   title: string;
-  icon: string;
+  icon?: string;
   points: number;
   assignedTo: string[];
   scheduleType: ScheduleType;

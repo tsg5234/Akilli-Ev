@@ -22,6 +22,7 @@ import {
   verifyLocalParentPin
 } from "@/lib/local-db";
 import { SAMPLE_TASK_TEMPLATES } from "@/lib/sample-data";
+import { DEFAULT_TASK_ICON } from "@/lib/task-defaults";
 import {
   getActiveTimeBlock,
   getDateKey,
@@ -823,7 +824,7 @@ export async function saveTask(familyId: string, payload: TaskFormPayload) {
   const base = {
     family_id: familyId,
     title: payload.title,
-    icon: payload.icon,
+    icon: payload.icon?.trim() || DEFAULT_TASK_ICON,
     points: payload.points,
     assigned_to: payload.assignedTo,
     schedule_type: payload.scheduleType,
