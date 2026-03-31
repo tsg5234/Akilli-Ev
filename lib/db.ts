@@ -44,6 +44,7 @@ import type {
 
 const USERNAME_PATTERN = /^[a-z0-9._-]{3,24}$/;
 const CHILD_ROLE = "çocuk";
+const CHILD_USER_PREFIX = "__child__:";
 const ACCOUNT_USER_PREFIX = "__account__:";
 const ACCOUNT_PENDING_COLOR = "#0F172A";
 const ACCOUNT_READY_COLOR = "#1D4ED8";
@@ -117,6 +118,10 @@ function isAccountMarkerName(name: string) {
   return name.startsWith(ACCOUNT_USER_PREFIX);
 }
 
+function isStoredChildName(name: string) {
+  return name.startsWith(CHILD_USER_PREFIX);
+}
+
 function isAccountUserRecord(user: Pick<UserRecord, "name"> | Pick<AccountUserRecord, "name">) {
   return isAccountMarkerName(user.name);
 }
@@ -129,16 +134,15 @@ function normalizeUserRole(role: string): UserRecord["role"] {
   return role === "ebeveyn" ? "ebeveyn" : CHILD_ROLE;
 }
 
-function getChildRoleCandidates() {
-  const onceMangled = Buffer.from(CHILD_ROLE, "utf8").toString("latin1");
-  const twiceMangled = Buffer.from(onceMangled, "utf8").toString("latin1");
-  return Array.from(new Set([CHILD_ROLE, onceMangled, twiceMangled, "cocuk"]));
+function getStoredProfileName(name: string, role: UserRecord["role"]) {
+  return role === CHILD_ROLE ? `${CHILD_USER_PREFIX}${name}` : name;
 }
 
 function normalizeUserRecord(user: UserRecord): UserRecord {
   return {
     ...user,
-    role: normalizeUserRole(user.role)
+    name: isStoredChildName(user.name) ? user.name.slice(CHILD_USER_PREFIX.length) : user.name,
+    role: isStoredChildName(user.name) ? CHILD_ROLE : normalizeUserRole(user.role)
   };
 }
 
@@ -294,43 +298,22 @@ async function insertProfileUser(
   const supabase = createAdminClient();
   const base = {
     family_id: familyId,
-    name: profile.name,
+    name: getStoredProfileName(profile.name, profile.role),
     avatar: profile.avatar,
     color: profile.color,
     birthdate: profile.birthdate
   };
+  const { data, error } = await supabase
+    .from("users")
+    .insert({ ...base, role: "ebeveyn" })
+    .select("*")
+    .single();
 
-  if (profile.role === "ebeveyn") {
-    const { data, error } = await supabase
-      .from("users")
-      .insert({ ...base, role: "ebeveyn" })
-      .select("*")
-      .single();
-
-    if (error) {
-      fail("Kullanicilar olusturulamadi", error);
-    }
-
-    return normalizeUserRecord(data as UserRecord);
+  if (error) {
+    fail("Kullanicilar olusturulamadi", error);
   }
 
-  let lastError: unknown = null;
-
-  for (const roleCandidate of getChildRoleCandidates()) {
-    const { data, error } = await supabase
-      .from("users")
-      .insert({ ...base, role: roleCandidate })
-      .select("*")
-      .single();
-
-    if (!error && data) {
-      return normalizeUserRecord(data as UserRecord);
-    }
-
-    lastError = error;
-  }
-
-  fail("Kullanicilar olusturulamadi", lastError);
+  return normalizeUserRecord(data as UserRecord);
 }
 
 async function updateProfileUser(
@@ -347,31 +330,20 @@ async function updateProfileUser(
   const supabase = createAdminClient();
   const base = {
     family_id: familyId,
-    name: profile.name,
+    name: getStoredProfileName(profile.name, profile.role),
     avatar: profile.avatar,
     color: profile.color,
     birthdate: profile.birthdate
   };
+  const { error } = await supabase
+    .from("users")
+    .update({ ...base, role: "ebeveyn" })
+    .eq("id", userId)
+    .eq("family_id", familyId);
 
-  const roleCandidates =
-    profile.role === "ebeveyn" ? ["ebeveyn"] : getChildRoleCandidates();
-  let lastError: unknown = null;
-
-  for (const roleCandidate of roleCandidates) {
-    const { error } = await supabase
-      .from("users")
-      .update({ ...base, role: roleCandidate })
-      .eq("id", userId)
-      .eq("family_id", familyId);
-
-    if (!error) {
-      return;
-    }
-
-    lastError = error;
+  if (error) {
+    fail("Kullanici guncellenemedi", error);
   }
-
-  fail("Kullanici guncellenemedi", lastError);
 }
 
 async function ensureFamilyRecordExists(
