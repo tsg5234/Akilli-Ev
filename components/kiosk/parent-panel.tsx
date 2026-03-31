@@ -238,25 +238,23 @@ export function ParentPanel(props: ParentPanelProps) {
                 <span className="font-medium">{userDraft.color}</span>
               </div>
             </label>
-            <label className="flex items-center justify-between rounded-[1.5rem] border border-slate-200 bg-white px-4 py-4">
-              <div>
-                <div className="font-semibold">Kioskta goster</div>
-                <div className="text-sm text-[color:var(--text-muted)]">
-                  Kapaliysa profil ana secim ekraninda gorunmez.
-                </div>
-              </div>
-              <input
-                type="checkbox"
-                checked={userDraft.visible_in_kiosk !== false}
-                onChange={(event) =>
-                  setUserDraft((current) => ({
-                    ...current,
-                    visible_in_kiosk: event.target.checked
-                  }))
-                }
-                className="h-5 w-5"
-              />
-            </label>
+            <div className="space-y-2">
+              <Label>Kioskta goster</Label>
+              <label className="flex h-14 items-center justify-between rounded-[1.5rem] border border-slate-200 bg-white px-4 py-2">
+                <div className="font-medium text-slate-700">Profil ana ekranda gorunsun</div>
+                <input
+                  type="checkbox"
+                  checked={userDraft.visible_in_kiosk !== false}
+                  onChange={(event) =>
+                    setUserDraft((current) => ({
+                      ...current,
+                      visible_in_kiosk: event.target.checked
+                    }))
+                  }
+                  className="h-5 w-5"
+                />
+              </label>
+            </div>
           </div>
           <div className="flex gap-3">
             <button
