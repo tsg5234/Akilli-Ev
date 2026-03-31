@@ -179,19 +179,26 @@ export function AccountScreen({
               />
             </label>
 
-            {mode === "register" ? (
-              <label className="block space-y-2">
+            <div className="min-h-[118px]">
+              <label
+                className={`block space-y-2 transition-opacity duration-200 ${
+                  mode === "register" ? "opacity-100" : "pointer-events-none opacity-0"
+                }`}
+                aria-hidden={mode !== "register"}
+              >
                 <span className="text-sm font-bold text-slate-700">Sifre tekrar</span>
                 <input
                   type="password"
                   value={confirmPassword}
                   onChange={(event) => setConfirmPassword(event.target.value)}
-                  className="w-full rounded-[1.5rem] border border-slate-200 bg-white px-4 py-4 text-lg outline-none transition focus:border-sky-400 focus:shadow-[0_0_0_4px_rgba(56,189,248,0.12)]"
+                  disabled={mode !== "register"}
+                  tabIndex={mode === "register" ? 0 : -1}
+                  className="w-full rounded-[1.5rem] border border-slate-200 bg-white px-4 py-4 text-lg outline-none transition focus:border-sky-400 focus:shadow-[0_0_0_4px_rgba(56,189,248,0.12)] disabled:cursor-default"
                   placeholder="Sifreni tekrar yaz"
                   autoComplete="new-password"
                 />
               </label>
-            ) : null}
+            </div>
 
             {visibleError ? (
               <div className="rounded-[1.4rem] bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
