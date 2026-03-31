@@ -41,10 +41,10 @@ export function AccountScreen({
         initial={{ opacity: 0, y: 26 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.32, ease: "easeOut" }}
-        className="glass-panel-strong grid w-full max-w-[1180px] gap-4 overflow-hidden rounded-[2.6rem] p-3 sm:gap-5 sm:p-4 xl:grid-cols-[0.92fr_1.08fr] xl:gap-6 xl:p-6"
+        className="glass-panel-strong grid w-full max-w-[1280px] gap-4 overflow-hidden rounded-[2.6rem] p-3 sm:gap-5 sm:p-4 md:grid-cols-[0.88fr_1.12fr] md:items-stretch lg:gap-6 lg:p-5 xl:p-6"
       >
         <section
-          className="order-2 relative overflow-hidden rounded-[2.1rem] p-6 text-white sm:p-7 xl:order-1 xl:min-h-[620px] xl:p-9"
+          className="order-2 relative overflow-hidden rounded-[2.1rem] p-6 text-white sm:p-7 md:order-1 md:min-h-[560px] lg:p-8 xl:min-h-[620px] xl:p-9"
           style={{
             backgroundImage:
               "linear-gradient(150deg, #0f172a 0%, #166534 44%, #0ea5e9 100%)"
@@ -59,16 +59,16 @@ export function AccountScreen({
               </span>
 
               <div className="space-y-3">
-                <h1 className="max-w-2xl text-4xl font-black tracking-[-0.06em] sm:text-5xl xl:text-6xl">
-                  Aile panosu burada baslar.
+                <h1 className="max-w-lg text-4xl font-black leading-[0.92] tracking-[-0.06em] sm:text-5xl md:text-[3.35rem] lg:text-[4.35rem] xl:text-6xl">
+                  Ailen icin tek bir pano.
                 </h1>
-                <p className="max-w-xl text-base leading-7 text-white/76 sm:text-lg">
-                  Hesabina gir, kendi profillerini kur ve tabletten hemen kullan.
+                <p className="max-w-md text-base leading-7 text-white/76 sm:text-lg">
+                  Hesabina gir, profillerini kur ve hemen basla.
                 </p>
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 md:grid-cols-1 lg:grid-cols-3">
               {[
                 {
                   icon: House,
@@ -99,7 +99,7 @@ export function AccountScreen({
           </div>
         </section>
 
-        <section className="order-1 rounded-[2.1rem] bg-white/92 p-5 shadow-panel sm:p-6 xl:order-2 xl:p-8">
+        <section className="order-1 rounded-[2.1rem] bg-white/92 p-5 shadow-panel sm:p-6 md:order-2 lg:p-7 xl:p-8">
           <div className="flex items-center gap-3 rounded-full bg-slate-100 p-1">
             {[
               { id: "login" as const, label: "Giris yap" },
