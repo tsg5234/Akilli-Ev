@@ -1085,7 +1085,7 @@ export function KioskApp({ mode }: KioskAppProps) {
                                       initial={{ opacity: 0, y: 18 }}
                                       animate={{ opacity: 1, y: 0 }}
                                       transition={{ delay: index * 0.03, duration: 0.22, ease: "easeOut" }}
-                                      className="kid-task-card glass-panel relative overflow-hidden rounded-[2.2rem] p-4 lg:p-4"
+                                      className="kid-task-card glass-panel relative overflow-hidden rounded-[1.6rem] p-3"
                                       style={{
                                         backgroundImage: `linear-gradient(180deg, rgba(255,255,255,0.98) 0%, ${selectedTheme.soft} 62%, ${withAlpha(selectedTheme.accent, "18")} 100%)`,
                                         borderColor: withAlpha(selectedTheme.primary, "2E")
@@ -1093,8 +1093,8 @@ export function KioskApp({ mode }: KioskAppProps) {
                                     >
                                       <div className="pointer-events-none absolute right-[-2rem] top-[-2rem] h-32 w-32 rounded-full bg-[var(--active-soft)] blur-3xl" />
                                       <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/85 to-transparent" />
-                                      <div className="kid-task-layout relative flex h-full flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-4">
-                                        <div className="kid-task-main flex min-w-0 flex-1 items-center gap-3 md:gap-4">
+                                      <div className="kid-task-layout relative flex h-full flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                                        <div className="kid-task-main flex min-w-0 flex-1 items-center gap-2.5 sm:gap-3">
                                           <div
                                             className="kid-task-icon shrink-0 text-white"
                                             style={{
@@ -1106,8 +1106,8 @@ export function KioskApp({ mode }: KioskAppProps) {
                                           </div>
 
                                           <div className="kid-task-copy min-w-0 flex-1">
-                                            <div className="kid-task-copy-row flex items-center justify-between gap-2.5">
-                                              <h2 className="kid-task-title min-w-0 flex-1 text-[1.45rem] font-black tracking-[-0.05em] text-[color:var(--text-main)] sm:text-[1.6rem] lg:text-[1.75rem]">
+                                            <div className="kid-task-copy-row flex items-center justify-between gap-2">
+                                              <h2 className="kid-task-title min-w-0 flex-1 text-[1.15rem] font-black tracking-[-0.04em] text-[color:var(--text-main)] sm:text-[1.25rem] lg:text-[1.35rem]">
                                                 {task.title}
                                               </h2>
                                               <div className="kid-points-badge kid-points-badge-task shrink-0 whitespace-nowrap">
