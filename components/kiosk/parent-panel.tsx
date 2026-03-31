@@ -217,7 +217,7 @@ export function ParentPanel(props: ParentPanelProps) {
               />
             </label>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_220px]">
             <AvatarPicker
               compact
               role={userDraft.role}
@@ -911,14 +911,14 @@ export function ParentPanel(props: ParentPanelProps) {
           </div>
         </aside>
 
-        <div className="soft-scrollbar min-h-0 flex-1 overflow-y-auto pr-1 sm:pr-2">
+        <div className="min-h-0 flex-1 pr-1 sm:pr-2">
           {activeTabContent}
         </div>
       </div>
     );
 
   const panelShell = (
-    <div className="glass-panel-strong flex h-full min-h-0 flex-col rounded-none p-3 sm:rounded-[2.4rem] sm:p-4 lg:p-5">
+    <div className="glass-panel-strong flex h-full min-h-0 flex-col overflow-hidden rounded-none p-3 sm:rounded-[2.4rem] sm:p-4 lg:p-5">
       <div className="mb-3 flex items-center justify-between gap-4 border-b border-white/60 px-1 pb-3 sm:mb-4 sm:pb-4">
         <div className="min-w-0">
           <div className="text-sm font-semibold uppercase tracking-[0.24em] text-teal-700">Yonetim paneli</div>
@@ -933,7 +933,7 @@ export function ParentPanel(props: ParentPanelProps) {
           </button>
         ) : null}
       </div>
-      <div className="min-h-0 flex-1">{body}</div>
+      <div className="soft-scrollbar min-h-0 flex-1 overflow-y-auto pr-1 sm:pr-2">{body}</div>
     </div>
   );
 

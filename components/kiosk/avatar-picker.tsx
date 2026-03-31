@@ -54,8 +54,8 @@ export function AvatarPicker({
         <span className="text-sm font-semibold text-slate-700">{label}</span>
 
         <div className="rounded-[1.3rem] border border-slate-200 bg-slate-50 px-3 py-3">
-          <div className="grid gap-3 xl:grid-cols-[220px_minmax(0,1fr)]">
-            <div className="rounded-[1.2rem] bg-white px-3 py-3 shadow-[0_10px_22px_rgba(15,23,42,0.06)]">
+          <div className="space-y-3">
+            <div className="flex flex-col gap-3 rounded-[1.2rem] bg-white px-3 py-3 shadow-[0_10px_22px_rgba(15,23,42,0.06)] sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
                 <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-[1.1rem] bg-slate-50 text-3xl shadow-[0_10px_20px_rgba(15,23,42,0.08)]">
                   <AvatarDisplay avatar={value} name="Profil" />
@@ -66,7 +66,7 @@ export function AvatarPicker({
                 </div>
               </div>
 
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => uploadInputRef.current?.click()}
@@ -88,43 +88,41 @@ export function AvatarPicker({
               </div>
             </div>
 
-            <div className="space-y-3">
-              <div className="grid grid-cols-5 gap-2 sm:grid-cols-6 xl:grid-cols-5 2xl:grid-cols-6">
-                {avatarOptions.map((avatar) => (
-                  <button
-                    key={avatar}
-                    type="button"
-                    onClick={() => {
-                      setError(null);
-                      onChange(avatar);
-                    }}
-                    className={`flex h-11 w-full items-center justify-center rounded-2xl border text-2xl transition ${
-                      !isImageAvatar(value) && value === avatar
-                        ? "border-slate-950 bg-slate-950 text-white shadow-[0_10px_22px_rgba(15,23,42,0.18)]"
-                        : "border-slate-200 bg-white hover:border-slate-300"
-                    }`}
-                    aria-label={`Avatar ${avatar}`}
-                  >
-                    {avatar}
-                  </button>
-                ))}
-              </div>
-
-              <label className="block space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  Kendi emojin
-                </span>
-                <input
-                  value={isImageAvatar(value) ? "" : value}
-                  onChange={(event) => {
+            <div className="soft-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+              {avatarOptions.map((avatar) => (
+                <button
+                  key={avatar}
+                  type="button"
+                  onClick={() => {
                     setError(null);
-                    onChange(event.target.value);
+                    onChange(avatar);
                   }}
-                  className="w-full rounded-[1.1rem] border border-slate-200 bg-white px-3 py-3 text-lg outline-none transition focus:border-emerald-400 focus:shadow-[0_0_0_4px_rgba(16,185,129,0.12)]"
-                  placeholder={isImageAvatar(value) ? "Fotograf secili" : "🙂"}
-                />
-              </label>
+                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border text-2xl transition ${
+                    !isImageAvatar(value) && value === avatar
+                      ? "border-slate-950 bg-slate-950 text-white shadow-[0_10px_22px_rgba(15,23,42,0.18)]"
+                      : "border-slate-200 bg-white hover:border-slate-300"
+                  }`}
+                  aria-label={`Avatar ${avatar}`}
+                >
+                  {avatar}
+                </button>
+              ))}
             </div>
+
+            <label className="block space-y-2">
+              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Kendi emojin
+              </span>
+              <input
+                value={isImageAvatar(value) ? "" : value}
+                onChange={(event) => {
+                  setError(null);
+                  onChange(event.target.value);
+                }}
+                className="w-full rounded-[1.1rem] border border-slate-200 bg-white px-3 py-3 text-lg outline-none transition focus:border-emerald-400 focus:shadow-[0_0_0_4px_rgba(16,185,129,0.12)]"
+                placeholder={isImageAvatar(value) ? "Fotograf secili" : "🙂"}
+              />
+            </label>
           </div>
 
           <input
