@@ -45,6 +45,7 @@ export function SetupScreen({
   const [pin, setPin] = useState("");
   const [includeSampleData, setIncludeSampleData] = useState(false);
   const [profiles, setProfiles] = useState<SetupProfileDraft[]>([createProfile(PARENT_ROLE)]);
+  const visibleProfileCount = profiles.filter((profile) => profile.visible_in_kiosk !== false).length;
 
   const updateProfile = (
     index: number,
@@ -341,6 +342,13 @@ export function SetupScreen({
               className="h-6 w-6 rounded border-slate-300 text-teal-500"
             />
           </label>
+
+          {visibleProfileCount === 0 ? (
+            <div className="rounded-[1.5rem] bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+              Kiosk ekraninda su an hic profil gorunmeyecek. Devam edersen once bos ekran acilir;
+              sonra admin girisiyle bir profili gorunur yapabilirsin.
+            </div>
+          ) : null}
 
           {errorMessage ? (
             <div className="rounded-[1.5rem] bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">

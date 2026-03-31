@@ -431,6 +431,12 @@ export function KioskApp({ mode }: KioskAppProps) {
     () => allUsers.filter((user) => user.visible_in_kiosk),
     [allUsers]
   );
+  const quickRestoreUser = useMemo(
+    () => allUsers.find((user) => !user.visible_in_kiosk && user.role === "ebeveyn") ??
+      allUsers.find((user) => !user.visible_in_kiosk) ??
+      null,
+    [allUsers]
+  );
   const referenceNow = useMemo(() => clockNow ?? new Date(), [clockNow]);
 
   const selectedUser = useMemo(() => {
@@ -592,6 +598,26 @@ export function KioskApp({ mode }: KioskAppProps) {
                 : "Tum profiller kiosk disi birakilmis. Ebeveyn panelinden en az bir profili gorunur yapabilirsin."}
             </p>
             <div className="mt-5 flex flex-wrap justify-center gap-3">
+              {data.session.parentAuthenticated && quickRestoreUser ? (
+                <button
+                  onClick={async () => {
+                    await saveUser({
+                      id: quickRestoreUser.id,
+                      name: quickRestoreUser.name,
+                      role: quickRestoreUser.role,
+                      avatar: quickRestoreUser.avatar,
+                      color: quickRestoreUser.color,
+                      birthdate: quickRestoreUser.birthdate ?? "",
+                      visible_in_kiosk: true
+                    });
+                  }}
+                  className="rounded-[1.4rem] bg-emerald-600 px-5 py-3 font-semibold text-white"
+                >
+                  {quickRestoreUser.role === "ebeveyn"
+                    ? "Admin profilini goster"
+                    : "Bir profili goster"}
+                </button>
+              ) : null}
               {allUsers.length > 0 ? (
                 <button
                   onClick={() => {
@@ -612,6 +638,17 @@ export function KioskApp({ mode }: KioskAppProps) {
                 className="rounded-[1.4rem] bg-slate-200 px-5 py-3 font-semibold text-slate-800"
               >
                 Tekrar dene
+              </button>
+              <button
+                onClick={async () => {
+                  setScreen("profiles");
+                  closeAdmin();
+                  closeLogin();
+                  await logoutAccount();
+                }}
+                className="rounded-[1.4rem] bg-white px-5 py-3 font-semibold text-slate-700 ring-1 ring-slate-200"
+              >
+                Bu hesaptan cik
               </button>
             </div>
           </div>
