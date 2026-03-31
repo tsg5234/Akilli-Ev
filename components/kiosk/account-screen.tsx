@@ -96,10 +96,6 @@ export function AccountScreen({
                 </div>
               ))}
             </div>
-
-            <div className="rounded-[1.5rem] border border-white/10 bg-black/10 px-4 py-3 text-sm font-semibold text-white/74">
-              Tablet, iPad, yatay ve dikey ekran kullanimi icin duzenlendi.
-            </div>
           </div>
         </section>
 
