@@ -8,7 +8,14 @@ import { AvatarPicker } from "@/components/kiosk/avatar-picker";
 import { getDefaultAvatar, normalizeAvatarForRole } from "@/lib/avatar";
 import { TIME_BLOCK_LABELS, WEEKDAY_KEYS, WEEKDAY_LABELS } from "@/lib/schedule";
 import { DEFAULT_TASK_ICON } from "@/lib/task-defaults";
-import type { DashboardPayload, RewardFormPayload, TaskFormPayload, UserFormPayload } from "@/lib/types";
+import type {
+  DashboardPayload,
+  RewardFormPayload,
+  TaskFormPayload,
+  TaskRecord,
+  TimeBlock,
+  UserFormPayload
+} from "@/lib/types";
 
 type TabId = "kullanicilar" | "gorevler" | "oduller" | "puanlar" | "ayarlar";
 
@@ -109,8 +116,49 @@ const WEEKDAY_PRESETS = [
   { id: "hafta-sonu", label: "Hafta sonu", days: ["cts", "paz"] }
 ] as const;
 
+type TaskListTimeFilter = "tum" | TimeBlock;
+
+const TASK_LIST_TIME_FILTERS: Array<{ id: TaskListTimeFilter; label: string }> = [
+  { id: "tum", label: "Tüm" },
+  { id: "sabah", label: TIME_BLOCK_LABELS.sabah },
+  { id: "ogleden_sonra", label: TIME_BLOCK_LABELS.ogleden_sonra },
+  { id: "aksam", label: TIME_BLOCK_LABELS.aksam },
+  { id: "her_zaman", label: TIME_BLOCK_LABELS.her_zaman }
+];
+
+const TASK_TIME_BLOCK_ORDER: Record<TimeBlock, number> = {
+  sabah: 0,
+  ogleden_sonra: 1,
+  aksam: 2,
+  her_zaman: 3
+};
+
 function hasSameDays(left: string[], right: readonly string[]) {
   return WEEKDAY_KEYS.every((key) => left.includes(key) === right.includes(key));
+}
+
+function getTaskScheduleSummary(task: TaskRecord) {
+  if (task.schedule_type === "gunluk") {
+    return "Her gün";
+  }
+
+  if (task.schedule_type === "haftalik") {
+    return toWeekText(task.days);
+  }
+
+  return task.special_dates.join(", ");
+}
+
+function summarizeAssignedUsers(names: string[]) {
+  if (names.length === 0) {
+    return "Atama yok";
+  }
+
+  if (names.length <= 2) {
+    return names.join(", ");
+  }
+
+  return `${names.slice(0, 2).join(", ")} +${names.length - 2}`;
 }
 
 export function ParentPanel(props: ParentPanelProps) {
@@ -146,6 +194,8 @@ export function ParentPanel(props: ParentPanelProps) {
   const [pointsUserId, setPointsUserId] = useState("");
   const [pointsDelta, setPointsDelta] = useState(10);
   const [pointsNote, setPointsNote] = useState("Bonus puan");
+  const [taskSearch, setTaskSearch] = useState("");
+  const [taskTimeFilter, setTaskTimeFilter] = useState<TaskListTimeFilter>("tum");
 
   useEffect(() => {
     if (!data?.family) {
@@ -172,6 +222,92 @@ export function ParentPanel(props: ParentPanelProps) {
     () => Object.fromEntries((data?.tasks ?? []).map((task) => [task.id, task])),
     [data?.tasks]
   );
+  const filteredTaskGroups = useMemo(() => {
+    const searchTerm = taskSearch.trim().toLocaleLowerCase("tr-TR");
+    const filteredTasks = (data?.tasks ?? []).filter((task) => {
+      const matchesTime = taskTimeFilter === "tum" || task.time_block === taskTimeFilter;
+      if (!matchesTime) {
+        return false;
+      }
+
+      if (!searchTerm) {
+        return true;
+      }
+
+      const assignedNames = task.assigned_to
+        .map((id) => userLookup[id]?.name ?? "")
+        .join(" ")
+        .toLocaleLowerCase("tr-TR");
+
+      return [
+        task.title,
+        TIME_BLOCK_LABELS[task.time_block],
+        getTaskScheduleSummary(task),
+        assignedNames
+      ]
+        .join(" ")
+        .toLocaleLowerCase("tr-TR")
+        .includes(searchTerm);
+    });
+
+    const grouped = new Map<
+      string,
+      {
+        key: string;
+        title: string;
+        icon: string;
+        entries: TaskRecord[];
+        assignedSummary: string;
+      }
+    >();
+
+    filteredTasks.forEach((task) => {
+      const key = task.title.trim().toLocaleLowerCase("tr-TR");
+      const assignedNames = Array.from(
+        new Set(task.assigned_to.map((id) => userLookup[id]?.name).filter(Boolean) as string[])
+      );
+
+      const existing = grouped.get(key);
+      if (existing) {
+        existing.entries.push(task);
+        const mergedNames = Array.from(
+          new Set(
+            existing.entries.flatMap((item) =>
+              item.assigned_to.map((id) => userLookup[id]?.name).filter(Boolean) as string[]
+            )
+          )
+        );
+        existing.assignedSummary = summarizeAssignedUsers(mergedNames);
+        return;
+      }
+
+      grouped.set(key, {
+        key,
+        title: task.title,
+        icon: task.icon || DEFAULT_TASK_ICON,
+        entries: [task],
+        assignedSummary: summarizeAssignedUsers(assignedNames)
+      });
+    });
+
+    return Array.from(grouped.values())
+      .map((group) => ({
+        ...group,
+        entries: [...group.entries].sort((left, right) => {
+          const timeOrder = TASK_TIME_BLOCK_ORDER[left.time_block] - TASK_TIME_BLOCK_ORDER[right.time_block];
+          if (timeOrder !== 0) {
+            return timeOrder;
+          }
+
+          return left.points - right.points;
+        })
+      }))
+      .sort((left, right) => left.title.localeCompare(right.title, "tr"));
+  }, [data?.tasks, taskSearch, taskTimeFilter, userLookup]);
+  const filteredTaskCount = useMemo(
+    () => filteredTaskGroups.reduce((total, group) => total + group.entries.length, 0),
+    [filteredTaskGroups]
+  );
   const selectedPointUser = pointsUserId ? userLookup[pointsUserId] : undefined;
   const todaysCompletedTasks = useMemo(() => {
     if (!data || !pointsUserId) {
@@ -187,6 +323,20 @@ export function ParentPanel(props: ParentPanelProps) {
       .filter((item) => item.task)
       .sort((left, right) => Date.parse(right.completion.created_at) - Date.parse(left.completion.created_at));
   }, [data, pointsUserId, taskLookup]);
+
+  const loadTaskIntoDraft = (task: TaskRecord) => {
+    setTaskDraft({
+      id: task.id,
+      title: task.title,
+      icon: task.icon || DEFAULT_TASK_ICON,
+      points: task.points,
+      assignedTo: task.assigned_to,
+      scheduleType: task.schedule_type,
+      days: task.days,
+      specialDates: task.special_dates,
+      timeBlock: task.time_block
+    });
+  };
 
   const lockedView = (
     <div className="flex min-h-0 flex-1 items-center justify-center p-8">
@@ -532,51 +682,116 @@ export function ParentPanel(props: ParentPanelProps) {
         </div>
       </Card>
 
-      <Card title="Görev listesi" description="Seçerek görev bilgilerini forma aktarın.">
-        <div className="space-y-3">
-          {data?.tasks.map((task) => (
-            <button
-              key={task.id}
-              onClick={() =>
-                setTaskDraft({
-                  id: task.id,
-                  title: task.title,
-                  icon: task.icon || DEFAULT_TASK_ICON,
-                  points: task.points,
-                  assignedTo: task.assigned_to,
-                  scheduleType: task.schedule_type,
-                  days: task.days,
-                  specialDates: task.special_dates,
-                  timeBlock: task.time_block
-                })
-              }
-              className="w-full rounded-[1.6rem] border border-slate-200 bg-white/80 p-4 text-left"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-4">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-[1.2rem] bg-slate-100 text-3xl">
-                    {task.icon || DEFAULT_TASK_ICON}
-                  </div>
-                  <div>
-                    <div className="text-lg font-semibold">{task.title}</div>
-                    <div className="text-sm text-[color:var(--text-muted)]">
-                      {task.points} puan • {TIME_BLOCK_LABELS[task.time_block]}
-                    </div>
-                    <div className="text-sm text-[color:var(--text-muted)]">
-                      {task.schedule_type === "gunluk"
-                        ? "Her gün"
-                        : task.schedule_type === "haftalik"
-                          ? toWeekText(task.days)
-                          : task.special_dates.join(", ")}
-                    </div>
-                  </div>
-                </div>
-                <div className="text-sm text-[color:var(--text-muted)]">
-                  {task.assigned_to.map((id) => userLookup[id]?.name).filter(Boolean).join(", ")}
-                </div>
+      <Card title="Görev listesi" description="Ara, filtrele ve görev varyasyonlarını daha net görün.">
+        <div className="space-y-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <label className="block w-full lg:max-w-sm">
+              <input
+                value={taskSearch}
+                onChange={(event) => setTaskSearch(event.target.value)}
+                placeholder="Görev ara"
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3"
+              />
+            </label>
+            <div className="text-sm font-medium text-[color:var(--text-muted)]">
+              {filteredTaskCount} varyasyon • {filteredTaskGroups.length} başlık
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {TASK_LIST_TIME_FILTERS.map((filter) => {
+              const active = taskTimeFilter === filter.id;
+              return (
+                <button
+                  key={filter.id}
+                  onClick={() => setTaskTimeFilter(filter.id)}
+                  className={`rounded-full px-4 py-2 text-sm font-semibold ${
+                    active ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  {filter.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="space-y-3">
+            {filteredTaskGroups.length === 0 ? (
+              <div className="rounded-[1.6rem] border border-dashed border-slate-200 bg-white/70 p-5 text-sm text-[color:var(--text-muted)]">
+                Bu filtreyle görünen görev yok.
               </div>
-            </button>
-          ))}
+            ) : (
+              filteredTaskGroups.map((group) => (
+                <div key={group.key} className="rounded-[1.6rem] border border-slate-200 bg-white/80 p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] bg-slate-100 text-2xl">
+                        {group.icon}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="truncate text-lg font-semibold">{group.title}</div>
+                        <div className="text-sm text-[color:var(--text-muted)]">
+                          {group.entries.length} varyasyon • {group.assignedSummary}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 space-y-2">
+                    {group.entries.map((task) => {
+                      const active = taskDraft.id === task.id;
+                      return (
+                        <button
+                          key={task.id}
+                          onClick={() => loadTaskIntoDraft(task)}
+                          className={`w-full rounded-[1.2rem] border px-3 py-3 text-left transition ${
+                            active
+                              ? "border-slate-900 bg-slate-950 text-white"
+                              : "border-slate-200 bg-white/90 text-slate-900"
+                          }`}
+                        >
+                          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+                            <div className="flex min-w-0 flex-wrap items-center gap-2">
+                              <span
+                                className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                                  active ? "bg-white/15 text-white" : "bg-slate-100 text-slate-700"
+                                }`}
+                              >
+                                {TIME_BLOCK_LABELS[task.time_block]}
+                              </span>
+                              <span
+                                className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                                  active
+                                    ? "bg-amber-300/20 text-amber-100"
+                                    : "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
+                                }`}
+                              >
+                                {task.points} puan
+                              </span>
+                              <span
+                                className={`text-sm ${
+                                  active ? "text-white/80" : "text-[color:var(--text-muted)]"
+                                }`}
+                              >
+                                {getTaskScheduleSummary(task)}
+                              </span>
+                            </div>
+                            <div
+                              className={`text-sm ${
+                                active ? "text-white/80" : "text-[color:var(--text-muted)]"
+                              }`}
+                            >
+                              {task.assigned_to.map((id) => userLookup[id]?.name).filter(Boolean).join(", ")}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </Card>
     </div>
@@ -1035,3 +1250,4 @@ export function ParentPanel(props: ParentPanelProps) {
     </AnimatePresence>
   );
 }
+
