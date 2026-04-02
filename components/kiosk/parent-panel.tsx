@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { CheckCircle2, Gift, Settings2, ShieldCheck, Star, Users } from "lucide-react";
+import { ArrowDown, ArrowUp, CheckCircle2, Gift, Settings2, ShieldCheck, Star, Users } from "lucide-react";
 import { AvatarDisplay } from "@/components/kiosk/avatar-display";
 import { AvatarPicker } from "@/components/kiosk/avatar-picker";
 import { getDefaultAvatar, normalizeAvatarForRole } from "@/lib/avatar";
@@ -28,6 +28,7 @@ interface ParentPanelProps {
   onOpenLogin: () => void;
   onSaveUser: (payload: UserFormPayload) => Promise<void>;
   onSaveTask: (payload: TaskFormPayload) => Promise<void>;
+  onReorderTasks: (orderedTaskIds: string[]) => Promise<void>;
   onSaveReward: (payload: RewardFormPayload) => Promise<void>;
   onResolveRedemption: (redemptionId: string, status: "onaylandi" | "reddedildi") => Promise<void>;
   onAdjustPoints: (userId: string, delta: number, note: string) => Promise<void>;
@@ -178,6 +179,7 @@ export function ParentPanel(props: ParentPanelProps) {
     onOpenLogin,
     onSaveUser,
     onSaveTask,
+    onReorderTasks,
     onSaveReward,
     onResolveRedemption,
     onAdjustPoints,
@@ -269,9 +271,10 @@ export function ParentPanel(props: ParentPanelProps) {
     () => Object.fromEntries((data?.tasks ?? []).map((task) => [task.id, task])),
     [data?.tasks]
   );
-  const filteredTaskGroups = useMemo(() => {
+  const filteredTasks = useMemo(() => {
     const searchTerm = taskSearch.trim().toLocaleLowerCase("tr-TR");
-    const filteredTasks = (data?.tasks ?? []).filter((task) => {
+    return (data?.tasks ?? [])
+      .filter((task) => {
       const matchesUser = taskUserView === "tum" || task.assigned_to.includes(taskUserView);
       if (!matchesUser) {
         return false;
@@ -300,8 +303,18 @@ export function ParentPanel(props: ParentPanelProps) {
         .join(" ")
         .toLocaleLowerCase("tr-TR")
         .includes(searchTerm);
-    });
+      })
+      .sort((left, right) => {
+        const timeOrder = TASK_TIME_BLOCK_ORDER[left.time_block] - TASK_TIME_BLOCK_ORDER[right.time_block];
+        if (timeOrder !== 0) {
+          return timeOrder;
+        }
 
+        return Date.parse(left.created_at) - Date.parse(right.created_at);
+      });
+  }, [data?.tasks, taskSearch, taskTimeFilter, taskUserView, userLookup]);
+
+  const filteredTaskGroups = useMemo(() => {
     const grouped = new Map<
       string,
       {
@@ -342,20 +355,8 @@ export function ParentPanel(props: ParentPanelProps) {
       });
     });
 
-    return Array.from(grouped.values())
-      .map((group) => ({
-        ...group,
-        entries: [...group.entries].sort((left, right) => {
-          const timeOrder = TASK_TIME_BLOCK_ORDER[left.time_block] - TASK_TIME_BLOCK_ORDER[right.time_block];
-          if (timeOrder !== 0) {
-            return timeOrder;
-          }
-
-          return left.points - right.points;
-        })
-      }))
-      .sort((left, right) => left.title.localeCompare(right.title, "tr"));
-  }, [data?.tasks, taskSearch, taskTimeFilter, taskUserView, userLookup]);
+    return Array.from(grouped.values());
+  }, [filteredTasks, userLookup]);
   const filteredTaskCount = useMemo(
     () => filteredTaskGroups.reduce((total, group) => total + group.entries.length, 0),
     [filteredTaskGroups]
@@ -439,6 +440,25 @@ export function ParentPanel(props: ParentPanelProps) {
       specialDates: task.special_dates,
       timeBlock: task.time_block
     });
+  };
+
+  const canReorderTasks = taskUserView !== "tum";
+
+  const getTaskMoveScopeIds = (task: TaskRecord) =>
+    filteredTasks.filter((item) => item.time_block === task.time_block).map((item) => item.id);
+
+  const moveTask = async (task: TaskRecord, direction: -1 | 1) => {
+    const moveableTaskIds = getTaskMoveScopeIds(task);
+    const currentIndex = moveableTaskIds.indexOf(task.id);
+    const nextIndex = currentIndex + direction;
+
+    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= moveableTaskIds.length) {
+      return;
+    }
+
+    const reordered = [...moveableTaskIds];
+    [reordered[currentIndex], reordered[nextIndex]] = [reordered[nextIndex], reordered[currentIndex]];
+    await onReorderTasks(reordered);
   };
 
   const lockedView = (
@@ -923,6 +943,8 @@ export function ParentPanel(props: ParentPanelProps) {
                   <div className="mt-3 space-y-2">
                     {group.entries.map((task) => {
                       const active = taskDraft.id === task.id;
+                      const moveScopeIds = getTaskMoveScopeIds(task);
+                      const moveIndex = moveScopeIds.indexOf(task.id);
                       return (
                         <button
                           key={task.id}
@@ -959,15 +981,56 @@ export function ParentPanel(props: ParentPanelProps) {
                                 {getTaskScheduleSummary(task)}
                               </span>
                             </div>
-                            {taskUserView === "tum" ? (
-                              <div
-                                className={`text-sm ${
-                                  active ? "text-white/80" : "text-[color:var(--text-muted)]"
-                                }`}
-                              >
-                                {task.assigned_to.map((id) => userLookup[id]?.name).filter(Boolean).join(", ")}
-                              </div>
-                            ) : null}
+                            <div className="flex items-center gap-2">
+                              {taskUserView === "tum" ? (
+                                <div
+                                  className={`text-sm ${
+                                    active ? "text-white/80" : "text-[color:var(--text-muted)]"
+                                  }`}
+                                >
+                                  {task.assigned_to.map((id) => userLookup[id]?.name).filter(Boolean).join(", ")}
+                                </div>
+                              ) : null}
+
+                              {canReorderTasks ? (
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      void moveTask(task, -1);
+                                    }}
+                                    disabled={working || moveScopeIds.length < 2 || moveIndex === 0}
+                                    className={`rounded-full p-2 ${
+                                      active
+                                        ? "bg-white/12 text-white"
+                                        : "bg-slate-100 text-slate-700"
+                                    } disabled:opacity-40`}
+                                    aria-label="Yukari tasi"
+                                  >
+                                    <ArrowUp className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      void moveTask(task, 1);
+                                    }}
+                                    disabled={
+                                      working || moveScopeIds.length < 2 || moveIndex === moveScopeIds.length - 1
+                                    }
+                                    className={`rounded-full p-2 ${
+                                      active
+                                        ? "bg-white/12 text-white"
+                                        : "bg-slate-100 text-slate-700"
+                                    } disabled:opacity-40`}
+                                    aria-label="Asagi tasi"
+                                  >
+                                    <ArrowDown className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              ) : null}
+                            </div>
                           </div>
                         </button>
                       );

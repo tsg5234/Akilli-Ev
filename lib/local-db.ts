@@ -369,6 +369,36 @@ export async function saveLocalTask(familyId: string, payload: TaskFormPayload) 
   familyState.tasks.push(task);
 }
 
+export async function reorderLocalTasks(familyId: string, orderedTaskIds: string[]) {
+  const familyState = getFamilyState(familyId);
+  const uniqueTaskIds = Array.from(new Set(orderedTaskIds));
+  const taskLookup = new Map(familyState.tasks.map((task) => [task.id, task]));
+  const orderedTasks = uniqueTaskIds.map((id) => taskLookup.get(id)).filter(Boolean) as TaskRecord[];
+
+  if (orderedTasks.length < 2) {
+    return;
+  }
+
+  const affectedTaskIds = new Set(orderedTasks.map((task) => task.id));
+  const firstAffectedIndex = familyState.tasks.findIndex((task) => affectedTaskIds.has(task.id));
+
+  if (firstAffectedIndex < 0) {
+    return;
+  }
+
+  const remainingTasks = familyState.tasks.filter((task) => !affectedTaskIds.has(task.id));
+  const baseTime = Number.isNaN(Date.parse(orderedTasks[0]?.created_at ?? ""))
+    ? Date.now()
+    : Date.parse(orderedTasks[0].created_at);
+
+  orderedTasks.forEach((task, index) => {
+    task.created_at = new Date(baseTime + index).toISOString();
+  });
+
+  remainingTasks.splice(firstAffectedIndex, 0, ...orderedTasks);
+  familyState.tasks = remainingTasks;
+}
+
 export async function saveLocalReward(familyId: string, payload: RewardFormPayload) {
   const familyState = getFamilyState(familyId);
   const existing = payload.id

@@ -11,6 +11,7 @@ import {
   getLocalDashboardSnapshot,
   loginLocalAccount,
   registerLocalAccount,
+  reorderLocalTasks,
   requestLocalReward,
   resetLocalProgress,
   resolveLocalReward,
@@ -857,6 +858,61 @@ export async function saveTask(familyId: string, payload: TaskFormPayload) {
 
   if (error) {
     fail("Gorev olusturulamadi", error);
+  }
+}
+
+export async function reorderTasks(familyId: string, orderedTaskIds: string[]) {
+  if (!orderedTaskIds.length) {
+    return;
+  }
+
+  if (!isSupabaseConfigured()) {
+    return reorderLocalTasks(familyId, orderedTaskIds);
+  }
+
+  const supabase = createAdminClient();
+  const uniqueTaskIds = Array.from(new Set(orderedTaskIds));
+  const { data, error } = await supabase
+    .from("tasks")
+    .select("id, created_at")
+    .eq("family_id", familyId)
+    .in("id", uniqueTaskIds)
+    .order("created_at");
+
+  if (error) {
+    fail("Gorev sirasi alinamadi", error);
+  }
+
+  const existingTasks = data ?? [];
+  if (existingTasks.length < 2) {
+    return;
+  }
+
+  const taskLookup = new Map(existingTasks.map((task) => [task.id, task]));
+  const orderedExistingIds = uniqueTaskIds.filter((id) => taskLookup.has(id));
+
+  if (orderedExistingIds.length < 2) {
+    return;
+  }
+
+  const firstCreatedAt = existingTasks[0]?.created_at;
+  const baseTime = Number.isNaN(Date.parse(firstCreatedAt ?? ""))
+    ? Date.now()
+    : Date.parse(firstCreatedAt as string);
+
+  const updates = orderedExistingIds.map((taskId, index) =>
+    supabase
+      .from("tasks")
+      .update({ created_at: new Date(baseTime + index).toISOString() })
+      .eq("id", taskId)
+      .eq("family_id", familyId)
+  );
+
+  const results = await Promise.all(updates);
+  const failedResult = results.find((result) => result.error);
+
+  if (failedResult?.error) {
+    fail("Gorev sirasi guncellenemedi", failedResult.error);
   }
 }
 

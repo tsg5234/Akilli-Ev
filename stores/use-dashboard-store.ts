@@ -61,6 +61,7 @@ interface DashboardStore {
   requestReward: (rewardId: string, userId: string) => Promise<void>;
   saveUser: (payload: UserFormPayload) => Promise<void>;
   saveTask: (payload: TaskFormPayload) => Promise<void>;
+  reorderTasks: (orderedTaskIds: string[]) => Promise<void>;
   saveReward: (payload: RewardFormPayload) => Promise<void>;
   resolveRedemption: (
     redemptionId: string,
@@ -463,6 +464,33 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
         toast: {
           kind: "hata",
           message: error instanceof Error ? error.message : "Gorev kaydedilemedi."
+        }
+      });
+    }
+  },
+  async reorderTasks(orderedTaskIds) {
+    if (orderedTaskIds.length < 2) {
+      return;
+    }
+
+    set({ working: true });
+
+    try {
+      const data = await requestJson<DashboardPayload>("/api/tasks/reorder", {
+        method: "POST",
+        body: JSON.stringify({ orderedTaskIds })
+      });
+      withDashboardState(set, data);
+      set({
+        working: false,
+        toast: { kind: "basari", message: "Gorev sirasi guncellendi." }
+      });
+    } catch (error) {
+      set({
+        working: false,
+        toast: {
+          kind: "hata",
+          message: error instanceof Error ? error.message : "Gorev sirasi guncellenemedi."
         }
       });
     }

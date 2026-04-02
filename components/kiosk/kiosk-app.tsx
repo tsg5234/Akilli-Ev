@@ -86,7 +86,14 @@ async function setupRequest(payload: SetupPayload) {
 
 function orderTasks(tasks: TaskRecord[]) {
   const order = { sabah: 1, ogleden_sonra: 2, aksam: 3, her_zaman: 4 } as const;
-  return [...tasks].sort((a, b) => order[a.time_block] - order[b.time_block]);
+  return [...tasks].sort((a, b) => {
+    const timeOrder = order[a.time_block] - order[b.time_block];
+    if (timeOrder !== 0) {
+      return timeOrder;
+    }
+
+    return Date.parse(a.created_at) - Date.parse(b.created_at);
+  });
 }
 
 const ACTIVE_BLOCK_ORDER: Record<Exclude<ActiveTimeBlock, "gece">, number> = {
@@ -390,6 +397,7 @@ export function KioskApp({ mode }: KioskAppProps) {
     undoTaskCompletion,
     saveUser,
     saveTask,
+    reorderTasks,
     saveReward,
     resolveRedemption,
     adjustPoints,
@@ -705,6 +713,7 @@ export function KioskApp({ mode }: KioskAppProps) {
           onOpenLogin={openLogin}
           onSaveUser={saveUser}
           onSaveTask={saveTask}
+          onReorderTasks={reorderTasks}
           onSaveReward={saveReward}
           onResolveRedemption={resolveRedemption}
           onAdjustPoints={adjustPoints}
@@ -743,6 +752,7 @@ export function KioskApp({ mode }: KioskAppProps) {
           onOpenLogin={openLogin}
           onSaveUser={saveUser}
           onSaveTask={saveTask}
+          onReorderTasks={reorderTasks}
           onSaveReward={saveReward}
           onResolveRedemption={resolveRedemption}
           onAdjustPoints={adjustPoints}
@@ -1217,6 +1227,7 @@ export function KioskApp({ mode }: KioskAppProps) {
         onOpenLogin={openLogin}
         onSaveUser={saveUser}
         onSaveTask={saveTask}
+        onReorderTasks={reorderTasks}
         onSaveReward={saveReward}
         onResolveRedemption={resolveRedemption}
         onAdjustPoints={adjustPoints}
