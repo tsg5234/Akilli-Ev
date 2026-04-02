@@ -1204,6 +1204,7 @@ export function KioskApp({ mode }: KioskAppProps) {
       <CelebrationLayer
         open={Boolean(celebration)}
         userName={celebrationUser?.name ?? selectedUser.name}
+        userAvatar={celebrationUser?.avatar ?? selectedUser.avatar}
         taskTitle={celebration?.taskTitle ?? ""}
         points={celebration?.points ?? 0}
         totalPoints={celebrationUser?.points ?? selectedUser.points}
