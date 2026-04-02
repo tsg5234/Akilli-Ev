@@ -709,7 +709,7 @@ export function KioskApp({ mode }: KioskAppProps) {
           open={adminOpen}
           data={data}
           working={working}
-          onClose={closeAdmin}
+          onClose={logoutParent}
           onOpenLogin={openLogin}
           onSaveUser={saveUser}
           onSaveTask={saveTask}
@@ -1223,7 +1223,7 @@ export function KioskApp({ mode }: KioskAppProps) {
         open={adminOpen}
         data={data}
         working={working}
-        onClose={closeAdmin}
+        onClose={logoutParent}
         onOpenLogin={openLogin}
         onSaveUser={saveUser}
         onSaveTask={saveTask}
