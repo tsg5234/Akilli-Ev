@@ -3,6 +3,10 @@ import "server-only";
 import { compareSync, hashSync } from "bcryptjs";
 import { randomUUID } from "node:crypto";
 import type { AppSession } from "@/lib/auth";
+import {
+  buildRewardSystemConfigRewards,
+  getRewardSystemConfig
+} from "@/lib/reward-system";
 import { buildSampleTasks } from "@/lib/sample-data";
 import { DEFAULT_TASK_ICON } from "@/lib/task-defaults";
 import {
@@ -14,10 +18,12 @@ import {
 import type {
   CompletionRecord,
   DashboardPayload,
+  FamilySettingsPayload,
   FamilyRecord,
   PointEventRecord,
   RedemptionRecord,
   RewardFormPayload,
+  RewardSystemMode,
   RewardRecord,
   SetupPayload,
   TaskFormPayload,
@@ -418,6 +424,28 @@ export async function saveLocalReward(familyId: string, payload: RewardFormPaylo
   familyState.rewards.push(reward);
 }
 
+export async function saveLocalRewardSystemConfig(
+  familyId: string,
+  payload: Partial<{
+    mode: RewardSystemMode;
+    valueLabel: string;
+    valuePerPoint: number;
+  }>
+) {
+  const familyState = getFamilyState(familyId);
+  const currentConfig = getRewardSystemConfig(familyState.rewards);
+  const { modeReward, valueReward } = buildRewardSystemConfigRewards({
+    mode: payload.mode ?? currentConfig.mode,
+    valueLabel: payload.valueLabel ?? currentConfig.valueLabel,
+    valuePerPoint: payload.valuePerPoint ?? currentConfig.valuePerPoint,
+    modeRewardId: currentConfig.modeRewardId,
+    valueRewardId: currentConfig.valueRewardId
+  });
+
+  await saveLocalReward(familyId, modeReward);
+  await saveLocalReward(familyId, valueReward);
+}
+
 export async function toggleLocalTaskCompletion(
   familyId: string,
   taskId: string,
@@ -619,8 +647,8 @@ export async function resetLocalProgress(familyId: string) {
 export async function updateLocalFamilySettings(
   familyId: string,
   payload: Partial<{
-    name: string;
-    theme: "acik" | "koyu";
+    name: FamilySettingsPayload["name"];
+    theme: FamilySettingsPayload["theme"];
     audio_enabled: boolean;
     child_sleep_time: string;
     parent_sleep_time: string;

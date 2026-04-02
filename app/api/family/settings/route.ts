@@ -1,18 +1,12 @@
 import { requireParentSession } from "@/lib/auth";
-import { getDashboardSnapshot, updateFamilySettings } from "@/lib/db";
+import { getDashboardSnapshot, saveRewardSystemConfig, updateFamilySettings } from "@/lib/db";
 import { jsonError, jsonOk } from "@/lib/http";
+import type { FamilySettingsPayload } from "@/lib/types";
 
 export async function POST(request: Request) {
   try {
     const session = await requireParentSession();
-    const body = (await request.json()) as {
-      name?: string;
-      theme?: "acik" | "koyu";
-      audioEnabled?: boolean;
-      childSleepTime?: string;
-      parentSleepTime?: string;
-      dayResetTime?: string;
-    };
+    const body = (await request.json()) as FamilySettingsPayload;
 
     await updateFamilySettings(session.familyId, {
       name: body.name?.trim(),
@@ -22,6 +16,14 @@ export async function POST(request: Request) {
       parent_sleep_time: body.parentSleepTime?.trim(),
       day_reset_time: body.dayResetTime?.trim()
     });
+
+    if (body.rewardMode || body.valueLabel || typeof body.valuePerPoint === "number") {
+      await saveRewardSystemConfig(session.familyId, {
+        mode: body.rewardMode,
+        valueLabel: body.valueLabel,
+        valuePerPoint: body.valuePerPoint
+      });
+    }
 
     return jsonOk(await getDashboardSnapshot());
   } catch (error) {

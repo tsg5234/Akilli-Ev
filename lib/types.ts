@@ -3,6 +3,7 @@ export type ScheduleType = "gunluk" | "haftalik" | "ozel";
 export type TimeBlock = "sabah" | "ogleden_sonra" | "aksam" | "her_zaman";
 export type ActiveTimeBlock = "gece" | "sabah" | "ogleden_sonra" | "aksam";
 export type ThemeMode = "acik" | "koyu";
+export type RewardSystemMode = "puan" | "odul" | "deger" | "karma";
 
 export interface FamilyRecord {
   id: string;
@@ -161,4 +162,16 @@ export interface RewardFormPayload {
   title: string;
   pointsRequired: number;
   approvalRequired: boolean;
+}
+
+export interface FamilySettingsPayload {
+  name?: string;
+  theme?: "acik" | "koyu";
+  audioEnabled?: boolean;
+  childSleepTime?: string;
+  parentSleepTime?: string;
+  dayResetTime?: string;
+  rewardMode?: RewardSystemMode;
+  valueLabel?: string;
+  valuePerPoint?: number;
 }

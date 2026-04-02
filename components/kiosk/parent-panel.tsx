@@ -6,11 +6,25 @@ import { ArrowDown, ArrowUp, CheckCircle2, Gift, Settings2, ShieldCheck, Star, U
 import { AvatarDisplay } from "@/components/kiosk/avatar-display";
 import { AvatarPicker } from "@/components/kiosk/avatar-picker";
 import { getDefaultAvatar, normalizeAvatarForRole } from "@/lib/avatar";
+import {
+  DEFAULT_VALUE_LABEL,
+  DEFAULT_VALUE_PER_POINT,
+  REWARD_MODE_OPTIONS,
+  formatPointsAsValue,
+  getRewardSystemConfig,
+  getVisibleRewards,
+  rewardModeUsesGoals,
+  rewardModeUsesValue,
+  sanitizeValueLabel,
+  sanitizeValuePerPoint
+} from "@/lib/reward-system";
 import { isTaskScheduledForDate, TIME_BLOCK_LABELS, WEEKDAY_KEYS, WEEKDAY_LABELS } from "@/lib/schedule";
 import { DEFAULT_TASK_ICON } from "@/lib/task-defaults";
 import type {
   DashboardPayload,
+  FamilySettingsPayload,
   RewardFormPayload,
+  RewardSystemMode,
   TaskFormPayload,
   TaskRecord,
   TimeBlock,
@@ -39,14 +53,7 @@ interface ParentPanelProps {
     taskTitle: string
   ) => Promise<void>;
   onResetProgress: () => Promise<void>;
-  onUpdateSettings: (payload: {
-    name?: string;
-    theme?: "acik" | "koyu";
-    audioEnabled?: boolean;
-    childSleepTime?: string;
-    parentSleepTime?: string;
-    dayResetTime?: string;
-  }) => Promise<void>;
+  onUpdateSettings: (payload: FamilySettingsPayload) => Promise<void>;
   onLogout: () => Promise<void>;
 }
 
@@ -200,6 +207,9 @@ export function ParentPanel(props: ParentPanelProps) {
   const [childSleepTime, setChildSleepTime] = useState("22:00");
   const [parentSleepTime, setParentSleepTime] = useState("00:00");
   const [dayResetTime, setDayResetTime] = useState("00:00");
+  const [rewardMode, setRewardMode] = useState<RewardSystemMode>("odul");
+  const [valueLabel, setValueLabel] = useState(DEFAULT_VALUE_LABEL);
+  const [valuePerPoint, setValuePerPoint] = useState(String(DEFAULT_VALUE_PER_POINT));
   const [pointsUserId, setPointsUserId] = useState("");
   const [pointsDelta, setPointsDelta] = useState(10);
   const [pointsNote, setPointsNote] = useState("Bonus puan");
@@ -212,12 +222,16 @@ export function ParentPanel(props: ParentPanelProps) {
     if (!data?.family) {
       return;
     }
+    const rewardSystem = getRewardSystemConfig(data.rewards ?? []);
     setFamilyName(data.family.name);
     setTheme(data.family.theme);
     setAudioEnabled(data.family.audio_enabled);
     setChildSleepTime(data.family.child_sleep_time || "22:00");
     setParentSleepTime(data.family.parent_sleep_time || "00:00");
     setDayResetTime(data.family.day_reset_time || "00:00");
+    setRewardMode(rewardSystem.mode);
+    setValueLabel(rewardSystem.valueLabel);
+    setValuePerPoint(String(rewardSystem.valuePerPoint));
     setPointsUserId((current) => current || data.users[0]?.id || "");
   }, [data]);
 
@@ -261,9 +275,24 @@ export function ParentPanel(props: ParentPanelProps) {
     () => Object.fromEntries((data?.users ?? []).map((user) => [user.id, user])),
     [data?.users]
   );
+  const visibleRewards = useMemo(() => getVisibleRewards(data?.rewards ?? []), [data?.rewards]);
+  const rewardModeOption = useMemo(
+    () => REWARD_MODE_OPTIONS.find((item) => item.value === rewardMode),
+    [rewardMode]
+  );
+  const usesGoalRewards = rewardModeUsesGoals(rewardMode);
+  const usesValueRewards = rewardModeUsesValue(rewardMode);
+  const normalizedValueLabel = sanitizeValueLabel(valueLabel);
+  const normalizedValuePerPoint = sanitizeValuePerPoint(
+    Number(String(valuePerPoint).replace(",", "."))
+  );
+  const valuePreview = formatPointsAsValue(
+    200,
+    { valueLabel: normalizedValueLabel, valuePerPoint: normalizedValuePerPoint }
+  );
   const rewardLookup = useMemo(
-    () => Object.fromEntries((data?.rewards ?? []).map((reward) => [reward.id, reward])),
-    [data?.rewards]
+    () => Object.fromEntries(visibleRewards.map((reward) => [reward.id, reward])),
+    [visibleRewards]
   );
   const taskUsers = data?.users ?? [];
   const selectedTaskUser = taskUserView !== "tum" ? userLookup[taskUserView] : undefined;
@@ -459,6 +488,20 @@ export function ParentPanel(props: ParentPanelProps) {
     const reordered = [...moveableTaskIds];
     [reordered[currentIndex], reordered[nextIndex]] = [reordered[nextIndex], reordered[currentIndex]];
     await onReorderTasks(reordered);
+  };
+
+  const handleSaveSettings = async () => {
+    await onUpdateSettings({
+      name: familyName,
+      theme,
+      audioEnabled,
+      childSleepTime,
+      parentSleepTime,
+      dayResetTime,
+      rewardMode,
+      valueLabel: normalizedValueLabel,
+      valuePerPoint: normalizedValuePerPoint
+    });
   };
 
   const lockedView = (
@@ -1048,8 +1091,15 @@ export function ParentPanel(props: ParentPanelProps) {
 
   const rewardsTab = (
     <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
-      <Card title="Ödül düzenleyici" description="Çocuklar için yeni ödüller oluşturun.">
+      <Card title="Hedef ödül düzenleyici" description="Puanla açılacak ödül hedeflerini buradan yönetin.">
         <div className="space-y-4">
+          <div className="rounded-[1.5rem] border border-slate-200 bg-white/80 p-4 text-sm text-[color:var(--text-muted)]">
+            <div className="font-semibold text-slate-950">{rewardModeOption?.label ?? "Hedef ödüller"}</div>
+            <div className="mt-1">{rewardModeOption?.description}</div>
+            <div className="mt-2">
+              Puan sistemini Ayarlar sekmesinden değiştirebilirsin. Buradaki ödüller, hedef ödül modu açıkken çocuk ekranında görünür.
+            </div>
+          </div>
           <label className="block space-y-2">
             <Label>Başlık</Label>
             <input
@@ -1142,9 +1192,9 @@ export function ParentPanel(props: ParentPanelProps) {
           </div>
         </Card>
 
-        <Card title="Ödül listesi" description="Düzenlemek için bir ödüle dokunun.">
+        <Card title="Hedef ödül listesi" description="Düzenlemek için bir hedefe dokunun.">
           <div className="grid gap-3 md:grid-cols-2">
-            {data?.rewards.map((reward) => (
+            {visibleRewards.map((reward) => (
               <button
                 key={reward.id}
                 onClick={() =>
@@ -1163,6 +1213,11 @@ export function ParentPanel(props: ParentPanelProps) {
                 </div>
               </button>
             ))}
+            {visibleRewards.length === 0 ? (
+              <div className="rounded-[1.5rem] bg-white/80 p-4 text-sm text-[color:var(--text-muted)]">
+                Henüz hedef ödül eklenmedi. Sinema, dışarıda yemek veya dondurma gibi hedefleri buradan tanımlayabilirsin.
+              </div>
+            ) : null}
           </div>
         </Card>
       </div>
@@ -1316,6 +1371,66 @@ export function ParentPanel(props: ParentPanelProps) {
               className="h-5 w-5"
             />
           </label>
+          <div className="space-y-4 rounded-[1.75rem] border border-slate-200 bg-white/85 p-4">
+            <div>
+              <div className="font-semibold">Puan sistemi</div>
+              <div className="mt-1 text-sm text-[color:var(--text-muted)]">
+                Ailenin puanı nasıl kullanacağını seç. Çocuk ekranında seçilen sistemin anlamı görünür.
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {REWARD_MODE_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setRewardMode(option.value)}
+                  className={`rounded-full px-4 py-2 text-sm font-semibold ${
+                    rewardMode === option.value ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            <div className="rounded-[1.25rem] bg-slate-50 px-4 py-3 text-sm text-[color:var(--text-muted)]">
+              {rewardModeOption?.description}
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="block space-y-2">
+                <Label>Karşılık birimi</Label>
+                <input
+                  value={valueLabel}
+                  onChange={(event) => setValueLabel(event.target.value)}
+                  disabled={!usesValueRewards}
+                  placeholder="Örnek: TL, dakika, jeton"
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 disabled:cursor-not-allowed disabled:bg-slate-100"
+                />
+              </label>
+              <label className="block space-y-2">
+                <Label>1 puan kaç birim eder</Label>
+                <input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={valuePerPoint}
+                  onChange={(event) => setValuePerPoint(event.target.value)}
+                  disabled={!usesValueRewards}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 disabled:cursor-not-allowed disabled:bg-slate-100"
+                />
+              </label>
+            </div>
+            <div className="rounded-[1.25rem] border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-sm text-[color:var(--text-muted)]">
+              {usesValueRewards ? (
+                <>
+                  Örnek görünüm: <span className="font-semibold text-slate-950">200 puan = {valuePreview}</span>
+                </>
+              ) : usesGoalRewards ? (
+                <>Hedef ödüller Ödüller sekmesinden tanımlanır ve çocuk ekranında bir sonraki hedef olarak görünür.</>
+              ) : (
+                <>Bu modda çocuklar yalnızca puanlarını görür. Puanın neye dönüştüğünü ayrıca göstermeyiz.</>
+              )}
+            </div>
+          </div>
           <div className="grid gap-4 md:grid-cols-3">
             <label className="block space-y-2">
               <Label>Cocuk uyku saati</Label>
@@ -1353,16 +1468,7 @@ export function ParentPanel(props: ParentPanelProps) {
           </div>
           <div className="flex flex-wrap gap-3">
             <button
-              onClick={() =>
-                onUpdateSettings({
-                  name: familyName,
-                  theme,
-                  audioEnabled,
-                  childSleepTime,
-                  parentSleepTime,
-                  dayResetTime
-                })
-              }
+              onClick={handleSaveSettings}
               disabled={working}
               className="rounded-[1.4rem] bg-slate-950 px-5 py-3 font-semibold text-white disabled:opacity-60"
             >

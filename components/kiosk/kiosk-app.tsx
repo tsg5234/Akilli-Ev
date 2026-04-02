@@ -34,6 +34,13 @@ import { PinModal } from "@/components/kiosk/pin-modal";
 import { SetupScreen } from "@/components/kiosk/setup-screen";
 import { playSuccessAudio } from "@/lib/client-audio";
 import {
+  formatPointsAsValue,
+  getRewardSystemConfig,
+  getVisibleRewards,
+  rewardModeUsesGoals,
+  rewardModeUsesValue
+} from "@/lib/reward-system";
+import {
   getActiveTimeBlock,
   getDateKey,
   getDigitalTimeLabel,
@@ -577,6 +584,39 @@ export function KioskApp({ mode }: KioskAppProps) {
     celebration && data
       ? allUsers.find((user) => user.id === celebration.userId) ?? null
       : null;
+  const rewardSystemConfig = useMemo(() => getRewardSystemConfig(data?.rewards ?? []), [data?.rewards]);
+  const visibleRewards = useMemo(() => getVisibleRewards(data?.rewards ?? []), [data?.rewards]);
+  const rewardModeShowsGoals = rewardModeUsesGoals(rewardSystemConfig.mode);
+  const rewardModeShowsValue = rewardModeUsesValue(rewardSystemConfig.mode);
+  const sortedVisibleRewards = useMemo(
+    () => [...visibleRewards].sort((left, right) => left.points_required - right.points_required),
+    [visibleRewards]
+  );
+  const nextRewardGoal = useMemo(() => {
+    if (!selectedUser || !rewardModeShowsGoals || sortedVisibleRewards.length === 0) {
+      return null;
+    }
+
+    return (
+      sortedVisibleRewards.find((reward) => reward.points_required > selectedUser.points) ??
+      sortedVisibleRewards[sortedVisibleRewards.length - 1] ??
+      null
+    );
+  }, [rewardModeShowsGoals, selectedUser, sortedVisibleRewards]);
+  const convertedPointsValue = useMemo(() => {
+    if (!selectedUser || !rewardModeShowsValue) {
+      return null;
+    }
+
+    return formatPointsAsValue(selectedUser.points, rewardSystemConfig);
+  }, [rewardModeShowsValue, rewardSystemConfig, selectedUser]);
+  const nextRewardProgressRatio = useMemo(() => {
+    if (!nextRewardGoal || nextRewardGoal.points_required <= 0 || !selectedUser) {
+      return 0;
+    }
+
+    return Math.min(selectedUser.points / nextRewardGoal.points_required, 1);
+  }, [nextRewardGoal, selectedUser]);
 
   if (loading && !data) {
     return (
@@ -1018,6 +1058,55 @@ export function KioskApp({ mode }: KioskAppProps) {
                 </div>
               </div>
             </section>
+
+            {rewardSystemConfig.mode !== "puan" && (rewardModeShowsValue || (rewardModeShowsGoals && nextRewardGoal)) ? (
+              <section className="mt-4 grid gap-3 lg:grid-cols-2">
+                {rewardModeShowsValue ? (
+                  <div className="glass-panel-strong rounded-[2rem] border border-white/20 px-5 py-4 text-white">
+                    <div className="text-[0.72rem] font-black uppercase tracking-[0.18em] text-white/68">
+                      Biriktirdigin deger
+                    </div>
+                    <div className="mt-2 text-3xl font-black tracking-[-0.05em]">
+                      {convertedPointsValue}
+                    </div>
+                    <div className="mt-2 text-sm text-white/72">
+                      {selectedUser.points} puanin su anki karsiligi.
+                    </div>
+                  </div>
+                ) : null}
+
+                {rewardModeShowsGoals && nextRewardGoal ? (
+                  <div className="glass-panel-strong rounded-[2rem] border border-white/20 px-5 py-4 text-white">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <div className="text-[0.72rem] font-black uppercase tracking-[0.18em] text-white/68">
+                          Sonraki hedef
+                        </div>
+                        <div className="mt-2 text-2xl font-black tracking-[-0.05em]">
+                          {nextRewardGoal.title}
+                        </div>
+                      </div>
+                      <div className="rounded-full bg-white/12 px-3 py-1 text-sm font-semibold text-white/84 ring-1 ring-white/16">
+                        {selectedUser.points} / {nextRewardGoal.points_required} puan
+                      </div>
+                    </div>
+                    <div className="mt-4 h-3 overflow-hidden rounded-full bg-white/12">
+                      <div
+                        className="h-full rounded-full bg-white/80 transition-all duration-300"
+                        style={{
+                          width: `${selectedUser.points > 0 ? Math.max(nextRewardProgressRatio * 100, 8) : 0}%`
+                        }}
+                      />
+                    </div>
+                    <div className="mt-2 text-sm text-white/72">
+                      {selectedUser.points >= nextRewardGoal.points_required
+                        ? "Bu hedef acildi. Ailen onaylarsa odulu alabilirsin."
+                        : `${Math.max(nextRewardGoal.points_required - selectedUser.points, 0)} puan daha kaldi.`}
+                    </div>
+                  </div>
+                ) : null}
+              </section>
+            ) : null}
 
             {todayTasks.length === 0 ? (
               <DaySummaryPanel

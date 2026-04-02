@@ -16,12 +16,17 @@ import {
   resetLocalProgress,
   resolveLocalReward,
   saveLocalReward,
+  saveLocalRewardSystemConfig,
   saveLocalTask,
   saveLocalUser,
   toggleLocalTaskCompletion,
   updateLocalFamilySettings,
   verifyLocalParentPin
 } from "@/lib/local-db";
+import {
+  buildRewardSystemConfigRewards,
+  getRewardSystemConfig
+} from "@/lib/reward-system";
 import { SAMPLE_TASK_TEMPLATES } from "@/lib/sample-data";
 import { DEFAULT_TASK_ICON } from "@/lib/task-defaults";
 import {
@@ -34,7 +39,9 @@ import { createAdminClient } from "@/lib/supabase";
 import type {
   AccountAuthPayload,
   DashboardPayload,
+  FamilySettingsPayload,
   FamilyRecord,
+  RewardSystemMode,
   RewardFormPayload,
   RewardRecord,
   SetupPayload,
@@ -956,6 +963,41 @@ export async function saveReward(familyId: string, payload: RewardFormPayload) {
   }
 }
 
+export async function saveRewardSystemConfig(
+  familyId: string,
+  payload: Partial<{
+    mode: RewardSystemMode;
+    valueLabel: string;
+    valuePerPoint: number;
+  }>
+) {
+  if (!isSupabaseConfigured()) {
+    return saveLocalRewardSystemConfig(familyId, payload);
+  }
+
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("rewards")
+    .select("*")
+    .eq("family_id", familyId);
+
+  if (error) {
+    fail("Puan sistemi ayarlari alinamadi", error);
+  }
+
+  const currentConfig = getRewardSystemConfig((data ?? []) as RewardRecord[]);
+  const { modeReward, valueReward } = buildRewardSystemConfigRewards({
+    mode: payload.mode ?? currentConfig.mode,
+    valueLabel: payload.valueLabel ?? currentConfig.valueLabel,
+    valuePerPoint: payload.valuePerPoint ?? currentConfig.valuePerPoint,
+    modeRewardId: currentConfig.modeRewardId,
+    valueRewardId: currentConfig.valueRewardId
+  });
+
+  await saveReward(familyId, modeReward);
+  await saveReward(familyId, valueReward);
+}
+
 export async function toggleTaskCompletion(
   familyId: string,
   taskId: string,
@@ -1214,8 +1256,8 @@ export async function resetFamilyProgress(familyId: string) {
 export async function updateFamilySettings(
   familyId: string,
   payload: Partial<{
-    name: string;
-    theme: "acik" | "koyu";
+    name: FamilySettingsPayload["name"];
+    theme: FamilySettingsPayload["theme"];
     audio_enabled: boolean;
     child_sleep_time: string;
     parent_sleep_time: string;

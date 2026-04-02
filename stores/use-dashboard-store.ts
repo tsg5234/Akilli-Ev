@@ -4,6 +4,7 @@ import { create } from "zustand";
 import type {
   AccountAuthPayload,
   DashboardPayload,
+  FamilySettingsPayload,
   RewardFormPayload,
   TaskFormPayload,
   UserFormPayload
@@ -69,14 +70,7 @@ interface DashboardStore {
   ) => Promise<void>;
   adjustPoints: (userId: string, delta: number, note: string) => Promise<void>;
   resetProgress: () => Promise<void>;
-  updateFamilySettings: (payload: {
-    name?: string;
-    theme?: "acik" | "koyu";
-    audioEnabled?: boolean;
-    childSleepTime?: string;
-    parentSleepTime?: string;
-    dayResetTime?: string;
-  }) => Promise<void>;
+  updateFamilySettings: (payload: FamilySettingsPayload) => Promise<void>;
 }
 
 async function requestJson<T>(url: string, init?: RequestInit) {
