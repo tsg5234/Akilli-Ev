@@ -1063,43 +1063,44 @@ export function KioskApp({ mode }: KioskAppProps) {
             {rewardSystemConfig.mode !== "puan" && (rewardModeShowsValue || (rewardModeShowsGoals && nextRewardGoal)) ? (
               <section className={`mt-4 grid gap-3 ${rewardInsightCount > 1 ? "lg:grid-cols-2" : ""}`}>
                 {rewardModeShowsValue ? (
-                  <div className="glass-panel-strong rounded-[2rem] border border-white/20 px-5 py-4 text-white">
-                    <div className="text-[0.72rem] font-black uppercase tracking-[0.18em] text-white/68">
+                  <div className="rounded-[2rem] border border-white/70 bg-white/82 px-5 py-4 text-slate-900 shadow-[0_18px_38px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+                    <div className="text-[0.72rem] font-black uppercase tracking-[0.18em] text-slate-500">
                       Biriktirdigin deger
                     </div>
                     <div className="mt-2 text-3xl font-black tracking-[-0.05em]">
                       {convertedPointsValue}
                     </div>
-                    <div className="mt-2 text-sm text-white/72">
+                    <div className="mt-2 text-sm text-slate-500">
                       {selectedUser.points} puanin su anki karsiligi.
                     </div>
                   </div>
                 ) : null}
 
                 {rewardModeShowsGoals && nextRewardGoal ? (
-                  <div className="glass-panel-strong rounded-[2rem] border border-white/20 px-5 py-4 text-white">
+                  <div className="rounded-[2rem] border border-white/70 bg-white/82 px-5 py-4 text-slate-900 shadow-[0_18px_38px_rgba(15,23,42,0.08)] backdrop-blur-xl">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <div className="text-[0.72rem] font-black uppercase tracking-[0.18em] text-white/68">
+                        <div className="text-[0.72rem] font-black uppercase tracking-[0.18em] text-slate-500">
                           Sonraki hedef
                         </div>
                         <div className="mt-2 text-2xl font-black tracking-[-0.05em]">
                           {nextRewardGoal.title}
                         </div>
                       </div>
-                      <div className="rounded-full bg-white/12 px-3 py-1 text-sm font-semibold text-white/84 ring-1 ring-white/16">
+                      <div className="rounded-full px-3 py-1 text-sm font-semibold ring-1 ring-[color:var(--active-soft-strong)]/60 bg-[color:var(--active-soft)] text-[color:var(--active-text)]">
                         {selectedUser.points} / {nextRewardGoal.points_required} puan
                       </div>
                     </div>
-                    <div className="mt-4 h-3 overflow-hidden rounded-full bg-white/12">
+                    <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-200">
                       <div
-                        className="h-full rounded-full bg-white/80 transition-all duration-300"
+                        className="h-full rounded-full transition-all duration-300"
                         style={{
+                          background: `linear-gradient(90deg, ${selectedTheme.primary} 0%, ${selectedTheme.secondary} 100%)`,
                           width: `${selectedUser.points > 0 ? Math.max(nextRewardProgressRatio * 100, 8) : 0}%`
                         }}
                       />
                     </div>
-                    <div className="mt-2 text-sm text-white/72">
+                    <div className="mt-2 text-sm text-slate-500">
                       {selectedUser.points >= nextRewardGoal.points_required
                         ? "Bu hedef acildi. Ailen onaylarsa odulu alabilirsin."
                         : `${Math.max(nextRewardGoal.points_required - selectedUser.points, 0)} puan daha kaldi.`}
