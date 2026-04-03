@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Ev Programi",
-    short_name: "Ev Programi",
+    name: "Aile Panosu",
+    short_name: "Aile Panosu",
     description: "Tablet odaklı aile görev yönetimi",
     display: "standalone",
     orientation: "landscape",

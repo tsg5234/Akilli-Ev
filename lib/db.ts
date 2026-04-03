@@ -111,7 +111,7 @@ function validateAccountPayload(payload: AccountAuthPayload) {
   }
 
   if (password.length < 6) {
-    throw new Error("Sifre en az 6 karakter olmali.");
+    throw new Error("Şifre en az 6 karakter olmalı.");
   }
 
   return {

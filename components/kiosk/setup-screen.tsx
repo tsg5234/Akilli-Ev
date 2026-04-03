@@ -328,7 +328,7 @@ export function SetupScreen({
             disabled={working}
             className="w-full rounded-[1.9rem] bg-[linear-gradient(135deg,#22c55e,#38bdf8)] px-6 py-5 text-lg font-black text-white shadow-[0_18px_34px_rgba(34,197,94,0.24)] transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {working ? "Kuruluyor..." : "Profilleri olustur ve baslat"}
+            {working ? "Kuruluyor..." : "Profilleri oluştur ve başlat"}
           </button>
 
           {onLogout ? (

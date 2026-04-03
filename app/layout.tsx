@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import "@/app/globals.css";
 
 export const metadata: Metadata = {
-  title: "Ev Programi",
+  title: "Aile Panosu",
   description: "Türkçe aile görev yönetim uygulaması",
-  applicationName: "Ev Programi",
+  applicationName: "Aile Panosu",
   appleWebApp: {
     capable: true,
-    title: "Ev Programi",
+    title: "Aile Panosu",
     statusBarStyle: "black-translucent"
   }
 };

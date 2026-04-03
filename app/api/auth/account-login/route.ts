@@ -18,6 +18,6 @@ export async function POST(request: Request) {
 
     return jsonOk({ success: true });
   } catch (error) {
-    return jsonError(error instanceof Error ? error.message : "Giris yapilamadi.", 401);
+    return jsonError(error instanceof Error ? error.message : "Giriş yapılamadı.", 401);
   }
 }

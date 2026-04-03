@@ -27,10 +27,10 @@ export function AccountScreen({
 
   const submitLabel = useMemo(() => {
     if (working) {
-      return mode === "login" ? "Giris yapiliyor..." : "Hesap olusturuluyor...";
+      return mode === "login" ? "Giriş yapılıyor..." : "Hesap oluşturuluyor...";
     }
 
-    return mode === "login" ? "Hesaba gir" : "Hesap olustur";
+    return mode === "login" ? "Hesaba gir" : "Hesap oluştur";
   }, [mode, working]);
 
   const visibleError = localError || errorMessage;
@@ -55,15 +55,15 @@ export function AccountScreen({
             <div className="space-y-5">
               <span className="inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-sm font-black tracking-[0.08em] text-white/88">
                 <Sparkles className="h-4 w-4" />
-                Ev Programi
+                Aile Panosu
               </span>
 
               <div className="space-y-3">
                 <h1 className="max-w-lg text-4xl font-black leading-[0.92] tracking-[-0.06em] sm:text-5xl md:text-[3.35rem] lg:text-[4.35rem] xl:text-6xl">
-                  Ailen icin tek bir pano.
+                  Ailen için tek bir pano.
                 </h1>
                 <p className="max-w-md text-base leading-7 text-white/76 sm:text-lg">
-                  Hesabina gir, profillerini kur ve hemen basla.
+                  Hesabına gir, profillerini kur ve hemen başla.
                 </p>
               </div>
             </div>
@@ -73,12 +73,12 @@ export function AccountScreen({
                 {
                   icon: House,
                   title: "1. Hesap",
-                  text: "Giris yap ya da hesap ac."
+                  text: "Giriş yap ya da hesap aç."
                 },
                 {
                   icon: Users,
                   title: "2. Profiller",
-                  text: "Aileni kendin olustur."
+                  text: "Aileni kendin oluştur."
                 },
                 {
                   icon: ShieldCheck,
@@ -100,10 +100,10 @@ export function AccountScreen({
         </section>
 
         <section className="order-1 rounded-[2.1rem] bg-white/92 p-5 shadow-panel sm:p-6 md:order-2 lg:p-7 xl:p-8">
-          <div className="flex items-center gap-3 rounded-full bg-slate-100 p-1">
+            <div className="flex items-center gap-3 rounded-full bg-slate-100 p-1">
             {[
-              { id: "login" as const, label: "Giris yap" },
-              { id: "register" as const, label: "Hesap ac" }
+              { id: "login" as const, label: "Giriş yap" },
+              { id: "register" as const, label: "Hesap aç" }
             ].map((item) => (
               <button
                 key={item.id}
@@ -130,7 +130,7 @@ export function AccountScreen({
               setLocalError(null);
 
               if (mode === "register" && password !== confirmPassword) {
-                setLocalError("Sifre tekrar alani esit degil.");
+                setLocalError("Şifre tekrar alanı eşit değil.");
                 return;
               }
 
@@ -144,18 +144,18 @@ export function AccountScreen({
           >
             <div className="space-y-1">
               <p className="text-sm font-bold uppercase tracking-[0.24em] text-emerald-700">
-                {mode === "login" ? "Hos geldin" : "Ilk adim"}
+                {mode === "login" ? "Hoş geldin" : "İlk adım"}
               </p>
               <h2 className="text-3xl font-black tracking-[-0.05em] text-slate-950 sm:text-[2.2rem]">
-                {mode === "login" ? "Hesabina gir" : "Yeni hesap ac"}
+                {mode === "login" ? "Hesabına gir" : "Yeni hesap aç"}
               </h2>
               <p className="text-sm leading-6 text-slate-600">
-                Username alaninda sadece harf, rakam, nokta, tire ve alt cizgi kullan.
+                Kullanıcı adı alanında sadece harf, rakam, nokta, tire ve alt çizgi kullan.
               </p>
             </div>
 
             <label className="block space-y-2">
-              <span className="text-sm font-bold text-slate-700">Username</span>
+              <span className="text-sm font-bold text-slate-700">Kullanıcı adı</span>
               <input
                 value={username}
                 onChange={(event) =>
@@ -169,7 +169,7 @@ export function AccountScreen({
 
             <div className={`grid gap-4 ${mode === "register" ? "md:grid-cols-2" : ""}`}>
               <label className="block space-y-2">
-                <span className="text-sm font-bold text-slate-700">Sifre</span>
+                <span className="text-sm font-bold text-slate-700">Şifre</span>
                 <input
                   type="password"
                   value={password}
@@ -182,13 +182,13 @@ export function AccountScreen({
 
               {mode === "register" ? (
                 <label className="block space-y-2">
-                  <span className="text-sm font-bold text-slate-700">Sifre tekrar</span>
+                  <span className="text-sm font-bold text-slate-700">Şifre tekrar</span>
                   <input
                     type="password"
                     value={confirmPassword}
                     onChange={(event) => setConfirmPassword(event.target.value)}
                     className="w-full rounded-[1.5rem] border border-slate-200 bg-white px-4 py-4 text-lg outline-none transition focus:border-sky-400 focus:shadow-[0_0_0_4px_rgba(56,189,248,0.12)]"
-                    placeholder="Sifreni tekrar yaz"
+                    placeholder="Şifreni tekrar yaz"
                     autoComplete="new-password"
                   />
                 </label>

@@ -105,7 +105,7 @@ export async function requireAccountSession() {
   const session = await getAppSession();
 
   if (!session) {
-    throw new Error("Bu islem icin hesap girisi gerekli.");
+    throw new Error("Bu işlem için hesap girişi gerekli.");
   }
 
   return session;
@@ -149,7 +149,7 @@ export async function requireParentSession() {
   const session = await requireFamilySession();
 
   if (!session.parentAuthenticated || session.role !== "ebeveyn") {
-    throw new Error("Bu islem icin ebeveyn PIN girisi gerekli.");
+    throw new Error("Bu işlem için ebeveyn PIN girişi gerekli.");
   }
 
   return session;
