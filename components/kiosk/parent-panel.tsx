@@ -138,6 +138,8 @@ const WEEKDAY_PRESETS = [
 
 type TaskListTimeFilter = "tum" | TimeBlock;
 
+const POINT_DELTA_PRESETS = [10, 20, 50, -10, -20, -50];
+
 const TASK_LIST_TIME_FILTERS: Array<{ id: TaskListTimeFilter; label: string }> = [
   { id: "tum", label: "Tüm" },
   { id: "sabah", label: TIME_BLOCK_LABELS.sabah },
@@ -1418,6 +1420,37 @@ export function ParentPanel(props: ParentPanelProps) {
               className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3"
             />
           </label>
+          <div className="space-y-2">
+            <Label>Hızlı puan seç</Label>
+            <div className="flex flex-wrap gap-2">
+              {POINT_DELTA_PRESETS.map((delta) => {
+                const active = pointsDelta === delta;
+                const negative = delta < 0;
+
+                return (
+                  <button
+                    key={delta}
+                    type="button"
+                    onClick={() => setPointsDelta(delta)}
+                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                      active
+                        ? negative
+                          ? "bg-rose-600 text-white"
+                          : "bg-emerald-600 text-white"
+                        : negative
+                          ? "bg-rose-50 text-rose-700 ring-1 ring-rose-200"
+                          : "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+                    }`}
+                  >
+                    {delta > 0 ? `+${delta}` : delta} puan
+                  </button>
+                );
+              })}
+            </div>
+            <div className="text-xs text-[color:var(--text-muted)]">
+              Eksi değer puan düşürür, artı değer bonus puan ekler.
+            </div>
+          </div>
           <label className="block space-y-2">
             <Label>Açıklama</Label>
             <input
