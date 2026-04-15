@@ -132,6 +132,16 @@ export function getTurkishDateLabel(
   }).format(getReferenceDate(date, settings));
 }
 
+export function getTurkishWeekdayLabel(
+  date = new Date(),
+  settings?: FamilyTimingSettings | FamilyRecord | null
+) {
+  return new Intl.DateTimeFormat("tr-TR", {
+    timeZone: FAMILY_TIMEZONE,
+    weekday: "long"
+  }).format(getReferenceDate(date, settings));
+}
+
 export function getWeekdayKey(
   date = new Date(),
   settings?: FamilyTimingSettings | FamilyRecord | null

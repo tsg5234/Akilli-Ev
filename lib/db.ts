@@ -36,6 +36,7 @@ import {
   getActiveTimeBlock,
   getDateKey,
   getTurkishDateLabel,
+  getTurkishWeekdayLabel,
   getWeekDays
 } from "@/lib/schedule";
 import { createAdminClient } from "@/lib/supabase";
@@ -212,10 +213,7 @@ function getEmptyDashboardSnapshot(session: AppSession | null): DashboardPayload
     today: {
       dateKey: getDateKey(),
       label: getTurkishDateLabel(),
-      weekday: new Intl.DateTimeFormat("tr-TR", {
-        timeZone: "Europe/Istanbul",
-        weekday: "long"
-      }).format(new Date()),
+      weekday: getTurkishWeekdayLabel(),
       activeTimeBlock: getActiveTimeBlock()
     },
     week: getWeekDays()
@@ -516,10 +514,7 @@ function buildSetupRequiredSnapshot(
     today: {
       dateKey: getDateKey(new Date(), family),
       label: getTurkishDateLabel(new Date(), family),
-      weekday: new Intl.DateTimeFormat("tr-TR", {
-        timeZone: "Europe/Istanbul",
-        weekday: "long"
-      }).format(new Date()),
+      weekday: getTurkishWeekdayLabel(new Date(), family),
       activeTimeBlock: getActiveTimeBlock(new Date(), family)
     },
     week: getWeekDays(new Date(), family)
@@ -770,10 +765,7 @@ export async function getDashboardSnapshot(
     today: {
       dateKey: getDateKey(new Date(), family),
       label: getTurkishDateLabel(new Date(), family),
-      weekday: new Intl.DateTimeFormat("tr-TR", {
-        timeZone: "Europe/Istanbul",
-        weekday: "long"
-      }).format(new Date()),
+      weekday: getTurkishWeekdayLabel(new Date(), family),
       activeTimeBlock: getActiveTimeBlock(new Date(), family)
     },
     week

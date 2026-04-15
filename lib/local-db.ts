@@ -13,6 +13,7 @@ import {
   getActiveTimeBlock,
   getDateKey,
   getTurkishDateLabel,
+  getTurkishWeekdayLabel,
   getWeekDays
 } from "@/lib/schedule";
 import type {
@@ -95,10 +96,7 @@ function getEmptyDashboardSnapshot(session: AppSession | null): DashboardPayload
     today: {
       dateKey: getDateKey(),
       label: getTurkishDateLabel(),
-      weekday: new Intl.DateTimeFormat("tr-TR", {
-        timeZone: "Europe/Istanbul",
-        weekday: "long"
-      }).format(new Date()),
+      weekday: getTurkishWeekdayLabel(),
       activeTimeBlock: getActiveTimeBlock()
     },
     week: getWeekDays()
@@ -177,10 +175,7 @@ function toSnapshot(session: AppSession | null): DashboardPayload {
     today: {
       dateKey: getDateKey(new Date(), familyState.family),
       label: getTurkishDateLabel(new Date(), familyState.family),
-      weekday: new Intl.DateTimeFormat("tr-TR", {
-        timeZone: "Europe/Istanbul",
-        weekday: "long"
-      }).format(new Date()),
+      weekday: getTurkishWeekdayLabel(new Date(), familyState.family),
       activeTimeBlock: getActiveTimeBlock(new Date(), familyState.family)
     },
     week: getWeekDays(new Date(), familyState.family)
